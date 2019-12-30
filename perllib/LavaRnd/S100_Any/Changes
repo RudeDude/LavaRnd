@@ -1,0 +1,6 @@
+Revision history for Perl extension LavaRnd::S100_Any.
+
+0.01  Thu Mar 20 09:47:24 2003
+	- original version; created by h2xs 1.22 with options
+		-cn LavaRnd::S100_Any
+

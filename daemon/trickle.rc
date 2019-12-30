@@ -1,0 +1,153 @@
+#!/bin/sh
+#
+# trickle	trickle LavaRnd data into /dev/urandom
+#
+# NOTE: This file is written in the style of the RedHat rc file.
+#	Adjust/edit this as needed.
+#
+# NOTE: This file is not an endorsement of /dev/urandom, it is only
+#	a minor attempt to improve the entropy pool that it claims
+#	to maintain.
+#
+# chkconfig: 2345 14 90
+# description: slightly improve the non-cryptographically strong /dev/urandom
+#	       by loading it with some cryptographically strong data, both
+#	       before it starts and while the system is up
+
+# Copyright (c) 2000-2003 by Landon Curt Noll and Simon Cooper.
+# All Rights Reserved.
+#
+# This is open software; you can redistribute it and/or modify it under
+# the terms of the version 2.1 of the GNU Lesser General Public License
+# as published by the Free Software Foundation.
+#
+# This software is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General
+# Public License for more details.
+#
+# The file COPYING contains important info about Licenses and Copyrights.
+# Please read the COPYING file for details about this open software.
+#
+# A copy of version 2.1 of the GNU Lesser General Public License is
+# distributed with calc under the filename COPYING-LGPL.  You should have
+# received a copy with calc; if not, write to Free Software Foundation, Inc.
+# 59 Temple Place, Suite 330, Boston, MA  02111-1307, USA.
+#
+# For more information on LavaRnd: http://www.LavaRnd.org
+#
+# Share and enjoy! :-)
+
+# Source function library.
+. /etc/rc.d/init.d/functions
+
+# setup
+TRICKLE=/usr/sbin/trickle
+TRICKLE_ARG_FILE="/etc/sysconfig/trickle"
+URANDOM_SEED="/var/lib/random-seed"
+
+# trickle must exist and LavaRnd must be on
+#
+if [ ! -x "$TRICKLE" ]; then
+    echo -n "Starting trickle: "
+    failure "$TRICKLE daemon not executable - "
+    echo "$0: cannot find $TRICKLE daemon executable" 1>&2
+    exit 1
+fi
+if ! chkconfig LavaRnd; then
+    echo -n "Starting trickle: "
+    failure "LavaRnd not chkconfig-ed on - "
+    echo "$0: LavaRnd must be chkconfig on for trickle to work" 1>&2
+    exit 2
+fi
+
+# setup daemin line options or use the defaults
+#
+if [ -r "$TRICKLE_ARG_FILE" ]; then
+    . "$TRICKLE_ARG_FILE"
+fi
+if [ -z "$TRICKLE_LEN" ]; then
+    TRICKLE_LEN="16"
+fi
+if [ -z "$TRICKLE_PERIOD" ]; then
+    TRICKLE_PERIOD="300"
+fi
+if [ -z "$URANDOM" ]; then
+    URANDOM="/dev/urandom"
+fi
+
+# verify that we can write to char device /dev/urandom
+#
+if [ ! -e "$URANDOM" -o ! -c "$URANDOM" -o ! -w "$URANDOM" ]; then
+    echo -n "Starting trickle: "
+    failure "cannot write to char device $URANDOM - "
+    echo "$0: cannot write to char device $URANDOM" 1>&2
+    exit 3
+fi
+
+# See how we were called.
+case "$1" in
+  start)
+        echo -n "Preloading urandom seed: "
+	rm -f "$URANDOM_SEED.new"
+	touch "$URANDOM_SEED.new"
+	chmod 0600 "$URANDOM_SEED.new"
+	chown root.root "$URANDOM_SEED.new"
+	daemon "$TRICKLE" -n 1 512 0 "$URANDOM_SEED.new"
+	RETVAL=$?
+	if [ X"$RETVAL" == X"0" ]; then
+	    if [ -s "$URANDOM_SEED.new" ]; then
+		mv -f "$URANDOM_SEED.new" "$URANDOM_SEED"
+		success "Preloaded urandom seed $URANDOM_SEED - "
+	    else
+		failure "Preload urandom seed $URANDOM_SEED - "
+	    fi
+	else
+	    failure "Preload urandom seed $URANDOM_SEED - "
+	fi
+        echo
+        echo -n "Starting trickle: "
+	daemon "$TRICKLE" -b "$TRICKLE_LEN" "$TRICKLE_PERIOD" "$URANDOM"
+	RETVAL=$?
+        echo
+	[ $RETVAL -eq 0 ] && touch /var/lock/subsys/trickle
+        ;;
+  stop)
+        # Stop daemons.
+        echo -n "Shutting down trickle: "
+	# killproc does not deal with the multiple trickle's in some versions
+	NAME="`basename $TRICKLE`"
+	PIDS="`pidof -x -o $$ -o $PPID -o %PPID $NAME | grep -v '^$'`"
+	if [ -n "$PIDS" ]; then
+	    kill -SIGTERM $PIDS 2>&1 | egrep -v 'No such pid|No such process'
+	    RETVAL=0
+	else
+	    RETVAL=1		# no trickle's to kill
+	fi
+	case "$RETVAL" in
+	0) rm -f /var/lock/subsys/trickle
+	   success "Pre-stop trickle -"
+	   ;;
+	1) rm -f /var/lock/subsys/trickle
+	   passed "Pre-stop trickle -"
+	   ;;
+	*) failure "Pre-stop trickle -"
+	   ;;
+	esac
+	echo
+	;;
+  restart|reload)
+	$0 stop
+	$0 start
+	RETVAL=$?
+	;;
+  status)
+        echo -n "Checking trickle: "
+	status "$TRICKLE"
+	;;
+  *)
+        echo "Usage: $0 {start|stop|restart|reload|status}"
+        exit 1
+esac
+
+exit $RETVAL
