@@ -36,6 +36,59 @@
 #include "LavaRnd/have/cam_videodev.h"
 #include "LavaRnd/lavaerr.h"
 
+/*
+ * Define VIDEO_PALETTE_* constants if not defined by system headers
+ * Values are based on <linux/videodev.h> from Video4Linux1
+ */
+#ifndef VIDEO_PALETTE_GREY
+#define VIDEO_PALETTE_GREY      1
+#endif
+#ifndef VIDEO_PALETTE_HI240
+#define VIDEO_PALETTE_HI240     2
+#endif
+#ifndef VIDEO_PALETTE_RGB565
+#define VIDEO_PALETTE_RGB565    3
+#endif
+#ifndef VIDEO_PALETTE_RGB24
+#define VIDEO_PALETTE_RGB24     4
+#endif
+#ifndef VIDEO_PALETTE_RGB32
+#define VIDEO_PALETTE_RGB32     5
+#endif
+#ifndef VIDEO_PALETTE_RGB555
+#define VIDEO_PALETTE_RGB555    6
+#endif
+#ifndef VIDEO_PALETTE_YUV422
+#define VIDEO_PALETTE_YUV422    7
+#endif
+#ifndef VIDEO_PALETTE_YUYV
+#define VIDEO_PALETTE_YUYV      8
+#endif
+#ifndef VIDEO_PALETTE_UYVY
+#define VIDEO_PALETTE_UYVY      9
+#endif
+#ifndef VIDEO_PALETTE_YUV420
+#define VIDEO_PALETTE_YUV420    10
+#endif
+#ifndef VIDEO_PALETTE_YUV411
+#define VIDEO_PALETTE_YUV411    11
+#endif
+#ifndef VIDEO_PALETTE_RAW
+#define VIDEO_PALETTE_RAW       12
+#endif
+#ifndef VIDEO_PALETTE_YUV422P
+#define VIDEO_PALETTE_YUV422P   13
+#endif
+#ifndef VIDEO_PALETTE_YUV411P
+#define VIDEO_PALETTE_YUV411P   14
+#endif
+#ifndef VIDEO_PALETTE_YUV420P
+#define VIDEO_PALETTE_YUV420P   15
+#endif
+#ifndef VIDEO_PALETTE_YUV410P
+#define VIDEO_PALETTE_YUV410P   16
+#endif
+
 
 /*
  * chaos_zone - for a given pallette, determine where chaos is found in buffer

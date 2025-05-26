@@ -35,9 +35,10 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <signal.h>
 #include <string.h>
 #include <time.h>
+#include <sys/time.h>
+#include <signal.h>
 
 #include "LavaRnd/lavaerr.h"
 #include "LavaRnd/rawio.h"

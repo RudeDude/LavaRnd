@@ -45,6 +45,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <sys/resource.h>
 
 #include "LavaRnd/sysstuff.h"
 #include "LavaRnd/fnv1.h"

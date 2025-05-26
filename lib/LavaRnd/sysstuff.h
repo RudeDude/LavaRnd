@@ -56,6 +56,8 @@
 #  include <string.h>
 #  include <stdlib.h>
 #  include <setjmp.h>
+#  include <sys/time.h>
+#  include <signal.h>
 
 #  include "LavaRnd/have/have_time.h"
 #  if defined(HAVE_TIME_H)
@@ -98,6 +100,9 @@
 #  include "LavaRnd/have/have_uid_t.h"
 #  include "LavaRnd/have/have_ustat.h"
 #  include "LavaRnd/have/have_rusage.h"
+#  if defined(HAVE_GETRUSAGE) && defined(HAVE_SYS_RESOURCE_H)
+#    include <sys/resource.h>
+#  endif
 #  include "LavaRnd/have/have_sbrk.h"
 #  include "LavaRnd/have/have_getrlimit.h"
 #  include "LavaRnd/have/have_getpriority.h"

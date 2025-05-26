@@ -274,8 +274,8 @@ cam_videodev.h: videodev_2.4.h Makefile
 	@echo "#if !defined(__CAM_VIDEODEV_H__)" >> $@
 	@echo "#define __CAM_VIDEODEV_H__" >> $@
 	@echo "" >> $@
-	-@if [ -f /usr/include/linux/videodev.h ]; then \
-	    echo "#include \"/usr/include/linux/videodev.h\"" ; \
+	-@if [ -f /usr/include/linux/videodev2.h ]; then \
+	    echo "#include \"/usr/include/linux/videodev2.h\"" ; \
 	else \
 	    echo "#include \"videodev_2.4.h\"" ; \
 	fi >> $@
