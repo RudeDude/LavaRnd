@@ -70,9 +70,10 @@ double lava_dur_arg = 0.0;	/* duration requested for alarm */
  */
 static int isalarm = 0;	/* 1 => alarm has been set */
 static int issimple = 0;	/* 1 => simple alarm has been set */
-static struct itimerval invalid_timer = {	/* not a valid alarm time */
-    {-1, -1}, {-1, -1}
-};
+struct itimerval invalid_timer;	/* not a valid alarm time */
+invalid_timer.it_value.tv_sec = -1;
+invalid_timer.it_value.tv_usec = -1;
+
 struct itimerval timer = {	/* current alarm time */
     {0, 0}, {0, 0}
 };

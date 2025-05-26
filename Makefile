@@ -87,10 +87,10 @@ DMALLOC_LIB=
 #DMALLOC_LIB= -ldmalloc
 
 #CC_WARN=
-CC_WARN= -Wall -Werror
+CC_WARN= -Wall #-Werror
 
 #CC_OPT=
-CC_OPT= -O3
+CC_OPT= -O3 #-std=gnu99
 
 #CC_DBG= ${CC_OPT}
 #CC_DBG= -g ${CC_OPT}
