@@ -27,3 +27,37 @@ lib/LavaRnd/have/have_ustat_h.h
 lib/LavaRnd/have/ov511_cam.h
 lib/LavaRnd/have/pwc_cam.h
 .idea/
+## shared libs from make all
+lib/shared/
+## Compiled binaries
+daemon/lavapool
+daemon/lavaurl
+tool/baseconv
+tool/camdump
+tool/camdumpdir
+tool/camget
+tool/camsanity
+tool/camset
+tool/chk_lavarnd
+tool/imgtally
+tool/lavadump
+tool/lavaop
+tool/lavaop_i
+tool/poolout
+tool/ppmhead
+tool/tryrnd_exit
+tool/tryrnd_retry
+tool/tryrnd_return
+tool/tryrnd_s100_any
+tool/tryrnd_s100_high
+tool/tryrnd_s100_med
+tool/tryrnd_try_any
+tool/tryrnd_try_high
+tool/tryrnd_try_med
+tool/tryrnd_tryonce_any
+tool/tryrnd_tryonce_high
+tool/tryrnd_tryonce_med
+tool/y2grey
+tool/y2pseudoyuv
+tool/y2yuv
+tool/yuv2ppm
