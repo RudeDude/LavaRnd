@@ -274,9 +274,11 @@ cam_videodev.h: videodev_2.4.h Makefile
 	@echo "#if !defined(__CAM_VIDEODEV_H__)" >> $@
 	@echo "#define __CAM_VIDEODEV_H__" >> $@
 	@echo "" >> $@
-	-@if [ -f /usr/include/linux/videodev2.h ]; then \
+	-@if [ -f /usr/include/MANUAL-FORCE-DISABLE/linux/videodev2.h ]; then \
+		echo "INFO: Using system videodev2.h file">&2; \
 	    echo "#include \"/usr/include/linux/videodev2.h\"" ; \
 	else \
+		echo "INFO: Using BUNDLED videodev_2.4 .hfile">&2; \
 	    echo "#include \"videodev_2.4.h\"" ; \
 	fi >> $@
 	@echo "" >> $@
