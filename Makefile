@@ -33,7 +33,7 @@
 
 # setup
 #
-SHELL= /bin/sh
+SHELL= /bin/bash
 AWK= awk
 BASENAME= basename
 CAT= cat
