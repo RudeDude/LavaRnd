@@ -26,3 +26,4 @@ lib/LavaRnd/have/have_ustat.h
 lib/LavaRnd/have/have_ustat_h.h
 lib/LavaRnd/have/ov511_cam.h
 lib/LavaRnd/have/pwc_cam.h
+.idea/
