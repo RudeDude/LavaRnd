@@ -564,3 +564,12 @@ release_dir:
 	${CHMOD} 0444 ${RELDIR}/manifest-LavaRnd-${VERSION}
 	${RM} -rf ${RELDIR}/LavaRnd-${VERSION}
 	@echo "=-_-= ending $@ rule =-_-="
+
+test:
+	@echo "Sanity test, list cam types:"
+	LD_LIBRARY_PATH=${PWD}/lib/shared ./tool/chk_lavarnd
+	@echo ""
+	LD_LIBRARY_PATH=${PWD}/lib/shared ./tool/camget list all
+	@echo ""
+	LD_LIBRARY_PATH=${PWD}/lib/shared ./tool/poolout -v 32 1 0 > tmpfile
+
