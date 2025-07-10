@@ -90,7 +90,7 @@ DMALLOC_LIB=
 CC_WARN= -Wall #-Werror
 
 #CC_OPT=
-CC_OPT= -O3 #-std=gnu99
+CC_OPT= -O3 # -std=c99
 
 #CC_DBG= ${CC_OPT}
 #CC_DBG= -g ${CC_OPT}

@@ -148,7 +148,7 @@ CSRC= fetchlava.c fnv1.c \
 	liblava_exit.c liblava_retry.c liblava_return.c liblava_s100_any.c \
 	liblava_s100_high.c liblava_s100_med.c liblava_try_any.c \
 	liblava_try_high.c liblava_try_med.c liblava_tryonce_any.c \
-	liblava_tryonce_high.c liblava_tryonce_med.c random.c random_libc.c \
+	liblava_tryonce_high.c liblava_tryonce_med.c random.c randomvideo.c random_libc.c \
 	rawio.c s100.c sha1.c sysstuff.c lava_debug.c camop.c \
 	pwc_drvr.c ov511_drvr.c \
 	liblava_invalid.c cleanup.c palette.c
@@ -193,12 +193,12 @@ OBJS= fetchlava.o fnv1.o lavarnd.o lavasocket.o liblava_exit.o \
 	liblava_retry.o liblava_return.o liblava_s100_any.o \
 	liblava_s100_high.o liblava_s100_med.o liblava_try_any.o \
 	liblava_try_high.o liblava_try_med.o liblava_tryonce_any.o \
-	liblava_tryonce_high.o liblava_tryonce_med.o random.o random_libc.o \
+	liblava_tryonce_high.o liblava_tryonce_med.o random.o randomvideo.o random_libc.o \
 	rawio.o s100.o sha1.o sysstuff.o lava_debug.o camop.o \
 	pwc_drvr.o ov511_drvr.o \
 	liblava_invalid.o cleanup.o palette.o
 
-COMMON_LAVA_OBS= fetchlava.o fnv1.o lavasocket.o random.o rawio.o s100.o \
+COMMON_LAVA_OBS= fetchlava.o fnv1.o lavasocket.o random.o randomvideo.o rawio.o s100.o \
 		sha1.o sysstuff.o lava_debug.o cleanup.o
 
 # what to install
@@ -823,6 +823,7 @@ random.o: LavaRnd/lavaerr.h
 random.o: LavaRnd/lavaquality.h
 random.o: LavaRnd/random.h
 random.o: random.c
+randomvideo.o: randomvideo.c
 random_libc.o: LavaRnd/fetchlava.h
 random_libc.o: LavaRnd/lava_callback.h
 random_libc.o: LavaRnd/lavaerr.h
