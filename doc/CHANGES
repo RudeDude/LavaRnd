@@ -1,9 +1,25 @@
+LavaRnd version 0.1.3
+
+    15-Nov-2003
+
+    Fixed a few more compile warnings reported by users when they
+    compiled the LavaRnd source on different architectures.
+
+    Added camsanity values for a Logitech QuickCam Pro 4000 from
+    Martin Kretschmar (mail at martin dash kretschmar dot de).
+    We used the 500 frame run where he had just rebooted and
+    plugged in the camera.
+
+    Adjusted the camsanity for the pwc730 after reports from some
+    users that recently purchased cameras failed against the older
+    sanity checks.
+
 LavaRnd version 0.1.2
 
     09-Nov-2003
 
-    Fixed a number of compile warnings reported by users when compiled
-    on different architectures.
+    Fixed a number of compile warnings reported by users when they
+    compiled the LavaRnd source on different architectures.
 
 LavaRnd version 0.1.1
 

@@ -1,8 +1,8 @@
 /*
  * chan - general channel processing
  *
- * @(#) $Revision: 10.2 $
- * @(#) $Id: chan.c,v 10.2 2003/11/09 22:37:03 lavarnd Exp $
+ * @(#) $Revision: 10.3 $
+ * @(#) $Id: chan.c,v 10.3 2003/11/10 17:54:13 lavarnd Exp $
  *
  * Copyright (c) 2000-2003 by Landon Curt Noll and Simon Cooper.
  * All Rights Reserved.
@@ -106,7 +106,7 @@ static double chan_cycle_timeout = 0.0;
 /*
  * static functions
  */
-static void alloc_chan(u_int32_t len);
+static void alloc_chan(int32_t len);
 static void chan_indx_op(int32_t indx, chancycle cycle);
 static int chan_select(double timelen);
 
@@ -168,7 +168,7 @@ alloc_chanindx(void)
  * NOTE: This function will increase but not decrease the chan length.
  */
 static void
-alloc_chan(u_int32_t len)
+alloc_chan(int32_t len)
 {
     int start;	/* starting index to initialize */
     int i;

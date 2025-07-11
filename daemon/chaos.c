@@ -1,8 +1,8 @@
 /*
  * chaos - chaos type channel operations
  *
- * @(#) $Revision: 10.1 $
- * @(#) $Id: chaos.c,v 10.1 2003/08/18 06:44:37 lavarnd Exp $
+ * @(#) $Revision: 10.2 $
+ * @(#) $Id: chaos.c,v 10.2 2003/11/15 20:48:58 lavarnd Exp $
  *
  * Copyright (c) 2000-2003 by Landon Curt Noll and Simon Cooper.
  * All Rights Reserved.
@@ -881,8 +881,8 @@ read_chaos(chaos *ch)
 		         "chan[%d]: %s: frame: %lld insane frame cnt: %lld: %s",
 			 ch->indx,
 			 ((ch->siz.insane_cnt <= INSANE_FRAME_FIRST_WARN) ?
-			  "repting initial insanity" :
-			  "repting every so often"),
+			  "reporting initial insanity" :
+			  "reporting every so often"),
 			 ch->siz.frame_num, ch->siz.insane_cnt,
 			 lava_err_name(sanity));
 		}

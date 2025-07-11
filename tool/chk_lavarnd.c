@@ -9,8 +9,8 @@
  * If everything is OK, this program will exit 0.  It will exit non-zero
  * if there is some sort of problem.
  *
- * @(#) $Revision: 10.1 $
- * @(#) $Id: chk_lavarnd.c,v 10.1 2003/08/18 06:44:37 lavarnd Exp $
+ * @(#) $Revision: 10.2 $
+ * @(#) $Id: chk_lavarnd.c,v 10.2 2003/11/10 17:51:54 lavarnd Exp $
  *
  * Copyright (c) 2000-2003 by Landon Curt Noll and Simon Cooper.
  * All Rights Reserved.
@@ -135,7 +135,7 @@ main(int argc, char *argv[])
      * turn the alpha 4-way
      */
     dbg(1, "turn the alpha 4-way");
-    turn_len = lavarnd_turn_len(sizeof(alpha)-1, 4);
+    turn_len = lavarnd_turn_len((int)sizeof(alpha)-1, 4);
     dbg(2, "4-way turn length of alpha: %d", turn_len);
     if (turn_len != 28) {
 	fatal(3, "4-way lava_turn length: %d != 28", turn_len);
@@ -143,7 +143,7 @@ main(int argc, char *argv[])
     }
     turn = x_malloc(turn_len);
     memset(turn, '!', turn_len);
-    turn_ret = lava_turn(alpha, sizeof(alpha)-1, 4, turn);
+    turn_ret = lava_turn(alpha, (int)sizeof(alpha)-1, 4, turn);
     if (dbg_lvl >= 3) {
 	for (i=0; i < turn_len; ++i) {
 	    dbg(3, "4-way turned[%d]: %c (%02x)",
@@ -168,7 +168,7 @@ main(int argc, char *argv[])
      * turn the alpha 5-way
      */
     dbg(1, "turn the alpha 5-way");
-    turn_len = lavarnd_turn_len(sizeof(alpha)-1, 5);
+    turn_len = lavarnd_turn_len((int)sizeof(alpha)-1, 5);
     dbg(2, "5-way turn length of alpha: %d", turn_len);
     if (turn_len != 30) {
 	fatal(6, "5-way lava_turn length: %d != 30", turn_len);
@@ -176,7 +176,7 @@ main(int argc, char *argv[])
     }
     turn = x_malloc(turn_len);
     memset(turn, '!', turn_len);
-    turn_ret = lava_turn(alpha, sizeof(alpha)-1, 5, turn);
+    turn_ret = lava_turn(alpha, (int)sizeof(alpha)-1, 5, turn);
     if (dbg_lvl >= 3) {
 	for (i=0; i < turn_len; ++i) {
 	    dbg(3, "5-way turned[%d]: %c (%02x)",
@@ -202,7 +202,7 @@ main(int argc, char *argv[])
      * blk turn the alpha 4-way
      */
     dbg(1, "blk turn the alpha 4-way");
-    turn_len = lavarnd_blk_turn_len(sizeof(alpha)-1, 4);
+    turn_len = lavarnd_blk_turn_len((int)sizeof(alpha)-1, 4);
     dbg(2, "4-way blk turn length of alpha: %d", turn_len);
     if (turn_len != 80) {
 	fatal(9, "4-way blk_lava_turn length: %d != 80", turn_len);
@@ -210,7 +210,7 @@ main(int argc, char *argv[])
     }
     turn = x_malloc(turn_len);
     memset(turn, '!', turn_len);
-    turn_ret = lava_blk_turn(alpha, sizeof(alpha)-1, 4, turn);
+    turn_ret = lava_blk_turn(alpha, (int)sizeof(alpha)-1, 4, turn);
     if (dbg_lvl >= 3) {
 	for (i=0; i < turn_len; ++i) {
 	    dbg(3, "4-way blk turned[%d]: %c (%02x)",
@@ -235,7 +235,7 @@ main(int argc, char *argv[])
      * blk turn the alpha 5-way
      */
     dbg(1, "blk turn the alpha 5-way");
-    turn_len = lavarnd_blk_turn_len(sizeof(alpha)-1, 5);
+    turn_len = lavarnd_blk_turn_len((int)sizeof(alpha)-1, 5);
     dbg(2, "5-way blk turn length of alpha: %d", turn_len);
     if (turn_len != 100) {
 	fatal(12, "5-way blk_lava_turn length: %d != 100", turn_len);
@@ -243,7 +243,7 @@ main(int argc, char *argv[])
     }
     turn = x_malloc(turn_len);
     memset(turn, '!', turn_len);
-    turn_ret = lava_blk_turn(alpha, sizeof(alpha)-1, 5, turn);
+    turn_ret = lava_blk_turn(alpha, (int)sizeof(alpha)-1, 5, turn);
     if (dbg_lvl >= 3) {
 	for (i=0; i < turn_len; ++i) {
 	    dbg(3, "5-way blk turned[%d]: %c (%02x)",
@@ -269,8 +269,8 @@ main(int argc, char *argv[])
      * salt blk turn the alpha 4-way
      */
     dbg(1, "salt blk turn the alpha 4-way");
-    turn_len = lavarnd_salt_blk_turn_len(sizeof(cap_alpha)-1,
-	    				 sizeof(alpha)-1, 4);
+    turn_len = lavarnd_salt_blk_turn_len((int)sizeof(cap_alpha)-1,
+	    				 (int)sizeof(alpha)-1, 4);
     dbg(2, "4-way salt blk turn length of alpha: %d", turn_len);
     if (turn_len != 80) {
 	fatal(15, "4-way salt blk_lava_turn length: %d != 80", turn_len);
@@ -278,8 +278,8 @@ main(int argc, char *argv[])
     }
     turn = x_malloc(turn_len);
     memset(turn, '!', turn_len);
-    turn_ret = lava_salt_blk_turn(cap_alpha, sizeof(cap_alpha)-1,
-	    			  alpha, sizeof(alpha)-1, 4, turn);
+    turn_ret = lava_salt_blk_turn(cap_alpha, (int)sizeof(cap_alpha)-1,
+	    			  alpha, (int)sizeof(alpha)-1, 4, turn);
     if (dbg_lvl >= 3) {
 	for (i=0; i < turn_len; ++i) {
 	    dbg(3, "4-way salt blk turned[%d]: %c (%02x)",
@@ -304,8 +304,8 @@ main(int argc, char *argv[])
      * salt blk turn the alpha 5-way
      */
     dbg(1, "salt blk turn the alpha 5-way");
-    turn_len = lavarnd_salt_blk_turn_len(sizeof(cap_alpha)-1,
-	    				 sizeof(alpha)-1, 5);
+    turn_len = lavarnd_salt_blk_turn_len((int)sizeof(cap_alpha)-1,
+	    				 (int)sizeof(alpha)-1, 5);
     dbg(2, "5-way salt blk turn length of alpha: %d", turn_len);
     if (turn_len != 100) {
 	fatal(18, "5-way salt blk_lava_turn length: %d != 100", turn_len);
@@ -313,8 +313,8 @@ main(int argc, char *argv[])
     }
     turn = x_malloc(turn_len);
     memset(turn, '!', turn_len);
-    turn_ret = lava_salt_blk_turn(cap_alpha, sizeof(cap_alpha)-1,
-	    			  alpha, sizeof(alpha)-1, 5, turn);
+    turn_ret = lava_salt_blk_turn(cap_alpha, (int)sizeof(cap_alpha)-1,
+	    			  alpha, (int)sizeof(alpha)-1, 5, turn);
     if (dbg_lvl >= 3) {
 	for (i=0; i < turn_len; ++i) {
 	    dbg(3, "5-way salt blk turned[%d]: %c (%02x)",
@@ -340,7 +340,7 @@ main(int argc, char *argv[])
      * look at computed nway values
      */
     dbg(1, "look at computed nway values");
-    for (i=0; i < sizeof(rate_set)/sizeof(rate_set[0]); ++i) {
+    for (i=0; i < (int)sizeof(rate_set)/(int)sizeof(rate_set[0]); ++i) {
 	int nway;	/* computed nway value */
 
 	nway = lava_nway_value(350000, rate_set[i]);
@@ -355,7 +355,7 @@ main(int argc, char *argv[])
      * look at the computed lavarnd length
      */
     dbg(1, "look at the computed lavarnd length");
-    for (i=0; i < sizeof(rate_set)/sizeof(rate_set[0]); ++i) {
+    for (i=0; i < (int)sizeof(rate_set)/(int)sizeof(rate_set[0]); ++i) {
 	int len;	/* computed lavarnd value */
 
 	len = lavarnd_len(350000, rate_set[i]);
@@ -370,28 +370,28 @@ main(int argc, char *argv[])
      * test lavarand without salting
      */
     dbg(1, "test lavarand");
-    output_len = lavarnd_len(sizeof(input)-1, 2.0);
+    output_len = lavarnd_len((int)sizeof(input)-1, 2.0);
     dbg(2, "lavarnd_len: %d", output_len);
     output = x_malloc(output_len);
     memset(output, '!', output_len);
     /**/
-    turn_len = lavarnd_blk_turn_len(sizeof(input)-1, 4);
+    turn_len = lavarnd_blk_turn_len((int)sizeof(input)-1, 4);
     turn = x_malloc(turn_len);
     memset(turn, '!', output_len);
-    turn_ret = lava_blk_turn(input, sizeof(input)-1, 5, turn);
+    turn_ret = lava_blk_turn(input, (int)sizeof(input)-1, 5, turn);
     dbg(3, "input turned: %100s", turn);
     if (strcmp(turned_input, turn) != 0) {
 	fatal(23, "lavarnd turn returned the wrong string");
 	/*NOTREACHED*/
     }
     /**/
-    i = lavarnd(0, input, sizeof(input)-1, 2.0, output, output_len);
+    i = lavarnd(0, input, (int)sizeof(input)-1, 2.0, output, output_len);
     dbg(2, "lavarnd returns: %d", i);
     if (i != 100) {
 	fatal(24, "lavarnd returned: %d != 100", i);
 	/*NOTREACHED*/
     }
-    for (i=0; i < output_len/sizeof(u_int32_t); ++i) {
+    for (i=0; i < output_len/(int)sizeof(u_int32_t); ++i) {
 	dbg(3, "output[%d]: %02x%02x%02x%02x == 0x%08x",
 		i,
 		output[i] & 0xff,
@@ -400,7 +400,7 @@ main(int argc, char *argv[])
 		(output[i] >> 24) & 0xff,
 		output[i]);
     }
-    for (i=0; i < output_len/sizeof(u_int32_t); ++i) {
+    for (i=0; i < output_len/(int)sizeof(u_int32_t); ++i) {
 	if (output[i] != output_test[i]) {
 	    fatal(25, "lavarnd word %d output %08x != %08x",
 		      i, output[i], output_test[i]);
@@ -412,26 +412,26 @@ main(int argc, char *argv[])
      * verify that salting changes lavarnd output
      */
     dbg(1, "verify that salting changes lavarnd output");
-    output_len = lavarnd_len(sizeof(input)-1, 2.0);
+    output_len = lavarnd_len((int)sizeof(input)-1, 2.0);
     dbg(2, "salted lavarnd_len: %d", output_len);
     output = x_malloc(output_len);
     memset(output, '!', output_len);
     /**/
-    turn_len = lavarnd_blk_turn_len(sizeof(input)-1, 4);
+    turn_len = lavarnd_blk_turn_len((int)sizeof(input)-1, 4);
     turn = x_malloc(turn_len);
     memset(turn, '!', output_len);
-    turn_ret = lava_blk_turn(input, sizeof(input)-1, 5, turn);
+    turn_ret = lava_blk_turn(input, (int)sizeof(input)-1, 5, turn);
     dbg(3, "salted input turned: %100s", turn);
     /**/
     for (trial=0; trial < MAX_TRIAL; ++trial) {
 	dbg(1, "salting lavarnd trail #%d", trial);
-	i = lavarnd(1, input, sizeof(input)-1, 2.0, output, output_len);
+	i = lavarnd(1, input, (int)sizeof(input)-1, 2.0, output, output_len);
 	dbg(2, "salted lavarnd returns: %d", i);
 	if (i != 100) {
 	    fatal(26, "salted lavarnd returned: %d != 100", i);
 	    /*NOTREACHED*/
 	}
-	for (i=0; i < output_len/sizeof(u_int32_t); ++i) {
+	for (i=0; i < output_len/(int)sizeof(u_int32_t); ++i) {
 	    dbg(3, "salted output[%d]: %02x%02x%02x%02x = 0x%08x",
 		    i,
 		    output[i] & 0xff,
@@ -445,14 +445,14 @@ main(int argc, char *argv[])
 	 * 	 output is correct.  The odds of lavarnd output incorrectly
 	 * 	 being declared a failure is 1 in 2^32 (1 in 4294967296).
 	 */
-	for (i=0; i < output_len/sizeof(u_int32_t); ++i) {
+	for (i=0; i < output_len/(int)sizeof(u_int32_t); ++i) {
 	    if (output[i] == output_test[i]) {
 		dbg(0, "salted lavarnd word %d output %08x still same as %08x",
 		       i, output[i], output_test[i]);
 		break;
 	    }
 	}
-	if (i < output_len/sizeof(u_int32_t)) {
+	if (i < output_len/(int)sizeof(u_int32_t)) {
 	    continue;
 	}
 	/*
@@ -460,10 +460,10 @@ main(int argc, char *argv[])
 	 *	 output is correct.  The odds of lavarnd output incorrectly
 	 *	 being declared a failure is 20 in 2^32 (1 in 214748364.8)
 	 */
-	for (i=0; i < output_len/sizeof(u_int32_t)-1; ++i) {
+	for (i=0; i < output_len/(int)sizeof(u_int32_t)-1; ++i) {
 	    int j;
 
-	    for (j=i+1; j < output_len/sizeof(u_int32_t); ++j) {
+	    for (j=i+1; j < output_len/(int)sizeof(u_int32_t); ++j) {
 		if (output[i] == output[j]) {
 		    dbg(0,
 			"salted lavarnd word %d output %08x same as word %d",
@@ -471,11 +471,11 @@ main(int argc, char *argv[])
 		    break;
 		}
 	    }
-	    if (j < output_len/sizeof(u_int32_t)) {
+	    if (j < output_len/(int)sizeof(u_int32_t)) {
 		break;
 	    }
 	}
-	if (i < output_len/sizeof(u_int32_t)-1) {
+	if (i < output_len/(int)sizeof(u_int32_t)-1) {
 	    continue;
 	}
 	/* test must have worked */

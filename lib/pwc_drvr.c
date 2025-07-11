@@ -1,8 +1,8 @@
 /*
  * pwc_drvr - perform Philips specific web camera operations
  *
- * @(#) $Revision: 10.4 $
- * @(#) $Id: pwc_drvr.c,v 10.4 2003/11/09 22:37:03 lavarnd Exp $
+ * @(#) $Revision: 10.5 $
+ * @(#) $Id: pwc_drvr.c,v 10.5 2003/11/15 20:37:56 lavarnd Exp $
  *
  * Copyright (c) 2000-2003 by Landon Curt Noll and Simon Cooper.
  * All Rights Reserved.
@@ -95,7 +95,7 @@ static int pwc_ioctl(int fd, int request, void *arg);
  * These magic numbers were determine by experiment with a Philips 730
  * (also known as a Logitech ProCam 3000) and the Philips 740.
  */
-static struct pwc_state cam_730740 = {
+static struct pwc_state cam_730740 = {  		/* guess 730==740 */
     /* these values are read/write */
     PWC_MAX_PICT,		/* max brightness level */
     PWC_MAX_PICT,		/* max hue */
@@ -175,28 +175,28 @@ struct lava_state {
  *      The def_top_x of 17 was picked because the average top_17 level was
  *      near 0.6826895 (1-sigma).
  *
- *   top_17 = 0.657056
+ *   top_17 = 0.557056
  *
- * 	For top_17, the min bitdiff_fract was 0.670573 and standard deviation
+ * 	For top_17, the min bitdiff_fract was 0.570573 and standard deviation
  *	was 0.002703.  We go 5 sigma below the min for a margin of error.
  *
- *   half_x = 25
+ *   half_x = 20
  *
- *      The smallest level with a max uncom_fract > 0.5 was 27 and the
+ *      The smallest level with a max uncom_fract > 0.5 was 22 and the
  *	standard deviation was 0.262421.  We go 5 sigma below the min
  *	for a margin of error.
  *
- *   diff_fract = 0.400359
+ *   diff_fract = 0.300359
  *
- *	The min bitdiff_fract was 0.408092 and standard deviation
+ *	The min bitdiff_fract was 0.308092 and standard deviation
  *	was 0.001547.  We go 5 sigma below the min for a margin of error.
  *
  * Therefore a wide margin of error is used in the lava_state below:
  *
  *    def_top_x = 17
- *    def_min_fract = 0.657056
- *    def_half_x = 25
- *    def_diff_fract = 0.400359
+ *    def_min_fract = 0.557056
+ *    def_half_x = 20
+ *    def_diff_fract = 0.300359
  *
  * If your camera produces insane frames, then perhaps:
  *
@@ -218,13 +218,10 @@ struct lava_state {
  * The sanity check values should be dynamically determined so that
  * individual camera and camera enviroment differences can be
  * accounted for automatically. - XXX
- *
- * We assume, perhaps incorrectly, that the 740 has the same values
- * as the 730 camera.  This guess may be completely wrong.  - XXX
  */
 static struct lava_state lava_state[] = {
-    {730, &cam_730740, 3.0, 17, 0.657056, 25, 0.400359},
-    {740, &cam_730740, 3.0, 17, 0.657056, 25, 0.400359},  /* guess 730==740 */
+    {730, &cam_730740, 3.0, 17, 0.557056, 20, 0.300359},
+    {740, &cam_730740, 3.0, 17, 0.520855, 20, 0.318406},
 
     {-1, NULL, 0.0, 0, 0, 0.0, 0.0}	/* must be last */
 };

@@ -1,7 +1,7 @@
 How to add a support for a new camera for LavaRnd
 =================================================
 
-    for LavaRnd version 0.1.2
+    for LavaRnd version 0.1.3
 
 
 XXX - add more documentation on how to add support for a new type of camera
@@ -228,9 +228,6 @@ adding a new model for a LavaRnd supported module:
 	cd tool
 	camdumpdir myth555 /dev/video0 /var/tmp/myth555-frames 1000 -L -v 2
 
-	XXX - here is where the missing entropic tool would be used to
-	      measure the entropy of the webcam frames
-
 	NOTE: You can use the y2grey tool to produce a Grey scale RGB ppm
 	      image that can be viewed with your favorite viewer.  The raw
 	      Y Luminance values, however, cannot be directly viewed.
@@ -267,6 +264,17 @@ adding a new model for a LavaRnd supported module:
     	{5551212, &cam_555, 10.0, 0, 0.0, 0, 0.0},
 
     Now when using -L, you will get this new optimal default settings.
+
+    One can use the imgtally tool to estimate the entropy produced by
+    your camera.  For example:
+
+    	./imgtally myth555 /dev/video0 1000 /var/tmp/tally.stats -L
+
+    will estimate the entropy for 1000 frames of a myth555 camera.
+    The Shannon values (total image entropy, estimate entropy/pixel)
+    are the most important values.  The more Shannon total image entropy,
+    the better.  The closer Shannon estimate entropy/pixel is to 8,
+    the better.
 
     The final task needed is to determine the sanity check parameters
     for the webcam.  This involves using the camsanity tool to
