@@ -2,8 +2,8 @@
 #
 # daemons - LavaRnd daemons
 #
-# @(#) $Revision: 10.1 $
-# @(#) $Id: Makefile,v 10.1 2003/08/18 06:44:37 lavarnd Exp $
+# @(#) $Revision: 10.2 $
+# @(#) $Id: Makefile,v 10.2 2003/08/25 11:14:07 lavarnd Exp $
 #
 # Copyright (c) 2000-2003 by Landon Curt Noll and Simon Cooper.
 # All Rights Reserved.
@@ -111,7 +111,7 @@ CFGDIR= /etc/LavaRnd
 # user and host information
 #
 # LAVARND_VIDEODEV	special device file for the LavaRnd webcam
-# LAVARND_CAMTYPE	camera type (use a name given by: tool/camget list all)
+# LAVARND_CAMTYPE	camera type (use a name given by: tool/camset list all)
 # LAVARND_USER		username under which lavapool other lavarnd daemons run
 # LAVARND_GROUP		group under which lavapool other lavarnd daemons run
 # LAVAPOOL_CHROOT	lavapool chroots under this directory at startup

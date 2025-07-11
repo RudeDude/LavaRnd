@@ -1,8 +1,8 @@
 /*
  * imgtally - perform tally and other stats on a series of images
  *
- * @(#) $Revision: 10.1 $
- * @(#) $Id: imgtally.c,v 10.1 2003/08/18 06:44:37 lavarnd Exp $
+ * @(#) $Revision: 10.2 $
+ * @(#) $Id: imgtally.c,v 10.2 2003/08/25 10:15:48 lavarnd Exp $
  *
  * Copyright (c) 2000-2003 by Landon Curt Noll and Simon Cooper.
  * All Rights Reserved.
@@ -444,10 +444,14 @@ entropy_stats(long framenum, long analcnt,
 	       100.0 * (double)chi_lvl_tally[CHI_PROB -
 					     1] / ((double)analcnt * 8.0));
     }
-    printf("\nChi^2 entropy bit est:\t\t%ld bits\t%6.2f%%\n",
+    printf("\nNOTE: The Chi^2 variation guess does not produce relibable\n");
+    printf("entropy data.  It should be used for comparison purposes only.\n");
+    printf("For entropy measurement use the Shannon data below.\n");
+    printf("Chi^2 bit variation guess:\t\t%ld bits\t%6.2f%%\n",
     	   (long)chi_entropy,
 	   100.0 * chi_entropy / ((double)analcnt * 8.0));
-    printf("Chi^2 entropy bits/octet:\t\t\t%8.4f\n\n", chi_entropy / analcnt);
+    printf("Chi^2 variation guess in bits/octet:\t\t\t%8.4f\n\n",
+    	   chi_entropy / analcnt);
 
     /*
      * print Shannon information theory stats for image bits across frames

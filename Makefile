@@ -2,9 +2,9 @@
 #
 # LavaRnd - master LavaRnd makefile
 #
-# @(#) $Revision: 10.2 $
-# @(#) $Id: Makefile,v 10.2 2003/08/18 06:53:58 lavarnd Exp $
-# @(#) $Source: /home/lavarnd/src/RCS/Makefile,v $
+# @(#) $Revision: 10.3 $
+# @(#) $Id: Makefile,v 10.3 2003/08/25 11:13:15 lavarnd Exp $
+# @(#) $Source: /home/lavarnd/int/../src/RCS/Makefile,v $
 #
 # Copyright (c) 2000-2003 by Landon Curt Noll and Simon Cooper.
 # All Rights Reserved.
@@ -119,7 +119,7 @@ CFGDIR= /etc/LavaRnd
 # user and host information
 #
 # LAVARND_VIDEODEV	special device file for the LavaRnd webcam
-# LAVARND_CAMTYPE	camera type (use a name given by: tool/camget list all)
+# LAVARND_CAMTYPE	camera type (use a name given by: tool/camset list all)
 # LAVARND_USER		username under which lavapool other lavarnd daemons run
 # LAVARND_GROUP		group under which lavapool other lavarnd daemons run
 # LAVAPOOL_CHROOT	lavapool chroots under this directory at startup
@@ -164,13 +164,12 @@ REUSE_DOWN= ${WWWRO}/reuse_down
 #
 # These dirs should be built in this order
 #
-# NOTE: This list should not include 'local', a directory under which
-#	you can put your own tools.  The 'local' directory does not
-#	have to exist.  If it does, it must contain a Makefile with
-#	files for 'all', 'clean', 'clobber' and 'install'.
-#	The local/Makefile is processed last.
+# NOTE: The perllib really needs to be built after lib has been installed,
+#	so we first install ${PRESUBDIRS} and then recompile perllib
+#	before installing it.  *sigh*
 #
-SUBDIRS= lib perllib daemon tool doc
+PRESUBDIRS= lib daemon tool doc
+SUBDIRS= ${PRESUBDIRS} perllib
 
 # passdown - complete list of Makefile vars passed down to SUBDIRS Makefiles
 #
@@ -312,6 +311,9 @@ clobber:
 	@${RM} -f dist.sed install.sed
 	@echo "=+=+=+= ending $@ rule =+=+=+="
 
+# NOTE: The perllib really needs to be built after lib has been installed,
+#	so we first install ${PRESUBDIRS} and then recompile perllib
+#
 install: all
 	@echo "=+=+=+= starting $@ rule =+=+=+="
 	@for i in ${SUBDIRS}; do \
@@ -320,16 +322,30 @@ install: all
 		exit 1; \
 	    fi; \
 	done
-	@for i in ${SUBDIRS}; do \
-	    echo "=+=+= starting $$i subdir =+=+="; \
+	@for i in ${PRESUBDIRS}; do \
+	    echo "=+=+= starting $@ $$i subdir =+=+="; \
 	    echo "	(cd $$i; $(MAKE) $@)"; \
 	    (cd $$i; $(MAKE) $@ ${PASSDOWN}); \
 	    if [ $$? -ne 0 ]; then \
 	        echo "  $(MAKE) $@ for $$i failed" 1>&2; \
 		exit 2; \
 	    fi; \
-	    echo "=-_-= ending $$i subdir =-_-="; \
+	    echo "=-_-= ending $@ $$i subdir =-_-="; \
 	done
+	@echo "=+=+= must rebuiild perllib after lib has been installed =+=+="
+	@echo "(cd perllib; $(MAKE) clobber)"
+	@(cd perllib; $(MAKE) clobber ${PASSDOWN})
+	@echo "(cd perllib; $(MAKE) all)"
+	@(cd perllib; $(MAKE) all ${PASSDOWN})
+	@echo "=+=+= perllib rebuilt =+=+="
+	@echo "=+=+= starting $@ perllib subdir =+=+="
+	@echo "      (cd perllib; $(MAKE) $@)"
+	@(cd perllib; $(MAKE) $@ ${PASSDOWN}); \
+	 if [ $$? -ne 0 ]; then \
+	     echo "  $(MAKE) $@ for perllib failed" 1>&2; \
+	     exit 3; \
+	 fi; \
+	 echo "=-_-= ending $@ perllib =-_-="
 	@echo "=+=+=+= ending $@ rule =+=+=+="
 
 # ccflags - output C compiler flag values

@@ -1,7 +1,7 @@
 How to add a support for a new camera for LavaRnd
 =================================================
 
-    for LavaRnd version 0.1.0
+    for LavaRnd version 0.1.1
 
 
 XXX - add more documentation on how to add support for a new type of camera
@@ -23,7 +23,7 @@ QUICK START:
 
     NOTE: You should run the following command to get the current list:
 
-	tool/camget list all
+	tool/camset list all
 
     you will get the complete list of supported cameras.
     Try that command in case the above list is out of date.
@@ -31,7 +31,7 @@ QUICK START:
     You may need to set the library path if libs are compiled
     but not installed:
 
-	LD_LIBRARY_PATH=lib/shared tool/camget list all
+	LD_LIBRARY_PATH=lib/shared tool/camset list all
 
 
 adding support for a new webcam:
@@ -76,7 +76,7 @@ adding support for a new webcam:
 
     So hopefully now you have a Linux supported webcam and you know
     the kernel module that supports it.  Look at the output of
-    the 'tool/camget list all' command (see above).  If you see
+    the 'tool/camset list all' command (see above).  If you see
     a 'module: name' follow directions in the the section titled:
 
     	adding a new model for a LavaRnd supported module
@@ -140,7 +140,7 @@ adding a new model for a LavaRnd supported module:
 	    This is the longer, more verbose (but hopefully not too
 	    verbose) name of the camera.  The fullname is printed by
 	    the lavacam_print_types() function used by things like
-	    the 'camget list all' command.
+	    the 'camset list all' command.
 
 	function_names, ...
 
@@ -216,7 +216,7 @@ adding a new model for a LavaRnd supported module:
 
     Plug in your webcam.  Try to open it:
 
-	camget myth555 /dev/video0
+	camset myth555 /dev/video0 -L -v 1
 
     and see what settings it generates.
 

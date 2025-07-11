@@ -63,8 +63,8 @@ Copyrights and exception files
 	lib/s100.c
 	lib/sha1.c
 	tool/chi_tbl.h
-	{daemon,lib,perllib,tool}/COPYING
-	{daemon,lib,perllib,tool}/COPYING-LGPL
+	{daemon,doc,lib,perllib,tool}/COPYING
+	{daemon,doc,lib,perllib,tool}/COPYING-LGPL
 
     =-=
 

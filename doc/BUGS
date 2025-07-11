@@ -1,4 +1,4 @@
-Known bugs with LavaRnd version 0.1.0 code:
+Known bugs with LavaRnd version 0.1.1 code:
 
 * Perl modules do not load:
   2003-08-17
@@ -24,5 +24,9 @@ Known bugs with LavaRnd version 0.1.0 code:
 
     will fix this problem like it did for one of our systems that
     encountered this problem.
+
+    NOTE: As of version 0.1.1, the 'make install' tool does a
+          'cd perllib; make clobber; make all; make install'
+	  after the other sub-directories have been installed.
 
     Strange!

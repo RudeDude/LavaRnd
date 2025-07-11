@@ -1,7 +1,7 @@
 Development and test tools
 ==========================
 
-    for LavaRnd version 0.1.0
+    for LavaRnd version 0.1.1
 
 
 QUICK START:
@@ -79,6 +79,11 @@ LavaRnd tools:
 	usage: camset cam_type devname [-flags ... args ...]
 	       camset list all
 	       camset cam_type -help
+
+	NOTE: The most reliable way to print the LavaRnd default settings
+	      for a given webcam is to use:
+
+		camset cam_type devname -L -v 1
 
     chk_lavarnd
 	validity check the core of the LavaRnd algorithm

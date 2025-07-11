@@ -2,8 +2,8 @@
 #
 # version - print the version of this code
 #
-# @(#) $Revision: 10.1 $
-# @(#) $Id: version,v 10.1 2003/08/18 06:44:37 lavarnd Exp $
+# @(#) $Revision: 10.2 $
+# @(#) $Id: version,v 10.2 2003/08/25 11:24:34 lavarnd Exp $
 #
 # Copyright (c) 2000-2003 by Landon Curt Noll and Simon Cooper.
 # All Rights Reserved.
@@ -33,4 +33,4 @@
 #
 #	major.minor.patch
 #
-/bin/echo "0.1.0"
+/bin/echo "0.1.1"

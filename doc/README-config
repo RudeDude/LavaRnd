@@ -1,7 +1,7 @@
 How to configure LavaRnd
 ==============--========
 
-    for LavaRnd version 0.1.0
+    for LavaRnd version 0.1.1
 
 QUICK START:
 -----------
@@ -162,7 +162,7 @@ cfg.lavapool details:
 	The 2nd arg (in the above case pwc730) is the camera type.
 	One can get a list of supported camera types with the command:
 
-		LD_LIBRARY_PATH=lib/shared tool/camget list all
+		LD_LIBRARY_PATH=lib/shared tool/camset list all
 
 	where lib/shared is the path to the shared lib sub-directory
 	in the source tree.
@@ -174,7 +174,7 @@ cfg.lavapool details:
 	You can determine the -options and other driver flags by
 	using the command:
 
-	    LD_LIBRARY_PATH=lib/shared tool/camget camera_type -help
+	    LD_LIBRARY_PATH=lib/shared tool/camset camera_type -help
 
 	where camera_type is something like pwc730.
 

@@ -1,14 +1,14 @@
 How to compile LavaRnd
 ======================
 
-    for LavaRnd version 0.1.0
+    for LavaRnd version 0.1.1
 
 QUICK START:
 -----------
 
     To compile LavaRnd in the default way, try:
 
-	cd your_src_tree/LavaRnd-0.1.0
+	cd your_src_tree/LavaRnd-0.1.1
 	make clobber
 	make all
 

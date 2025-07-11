@@ -2,8 +2,8 @@
 #
 # doc - LavaRnd documentation
 #
-# @(#) $Revision: 10.3 $
-# @(#) $Id: Makefile,v 10.3 2003/08/18 08:43:40 lavarnd Exp $
+# @(#) $Revision: 10.4 $
+# @(#) $Id: Makefile,v 10.4 2003/08/25 11:14:07 lavarnd Exp $
 #
 # Copyright (c) 2000-2003 by Landon Curt Noll and Simon Cooper.
 # All Rights Reserved.
@@ -111,7 +111,7 @@ CFGDIR= /etc/LavaRnd
 # user and host information
 #
 # LAVARND_VIDEODEV	special device file for the LavaRnd webcam
-# LAVARND_CAMTYPE	camera type (use a name given by: tool/camget list all)
+# LAVARND_CAMTYPE	camera type (use a name given by: tool/camset list all)
 # LAVARND_USER		username under which lavapool other lavarnd daemons run
 # LAVARND_GROUP		group under which lavapool other lavarnd daemons run
 # LAVAPOOL_CHROOT	lavapool chroots under this directory at startup
@@ -226,7 +226,7 @@ install.sed: Makefile ../version
 	 (echo 's:^LAVARND_USER=.*:LAVARND_USER=${LAVARND_USER}:'; \
 	  echo 's:^LAVARND_GROUP=.*:LAVARND_GROUP=${LAVARND_GROUP}:'; \
 	  echo 's:^LAVAPOOL_CHROOT=.*:LAVAPOOL_CHROOT=${LAVAPOOL_CHROOT}:'; \
-	  echo 's:0.1.0:'$$VERSION':g'; \
+	  echo 's:0.1.1:'$$VERSION':g'; \
 	) > $@
 	@echo $@ built
 
@@ -242,7 +242,7 @@ dist.sed: Makefile ../version
 	 (echo 's:^LAVARND_USER=.*:LAVARND_USER=lava:'; \
 	  echo 's:^LAVARND_GROUP=.*:LAVARND_GROUP=lava:'; \
 	  echo 's:^LAVAPOOL_CHROOT=.*:LAVAPOOL_CHROOT=/:'; \
-	  echo 's:0.1.0:'$$VERSION':g'; \
+	  echo 's:0.1.1:'$$VERSION':g'; \
 	) > $@
 	@echo $@ built
 

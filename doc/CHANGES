@@ -1,3 +1,29 @@
+LavaRnd version 0.1.1
+
+    25-Aug-2003
+
+    Make install, after other directories are installed (and in particular
+    the lib directory is installed), will clobber and rebuild the perllib
+    directory before installing it.  Hopefully this will provide a
+    work-around for the "Perl modules do not load: 2003-08-17" bug.
+
+    Fixed the output of pwc_print() and ov511_print() in regards to
+    printing of sanity values.  This fixes the sanity value output of
+    tool such as camget, camset, etc.
+
+    Added comments to the imgtally output so that people will use the
+    Shannon entropy measurements instead of the Chi^2 bit variation
+    guesses.  Since camsanity produces good entropy estimates, the
+    TODO item related to a missing entropy was removed.
+
+    Recommend that people use:
+
+    	camset cam_type cam_device -L -v 1
+
+    to output the default LavaRnd configuration.
+
+=-=
+
 LavaRnd version 0.1.0
 
     18-Aug-2003

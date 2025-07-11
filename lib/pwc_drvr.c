@@ -1,8 +1,8 @@
 /*
  * pwc_drvr - perform Philips specific web camera operations
  *
- * @(#) $Revision: 10.1 $
- * @(#) $Id: pwc_drvr.c,v 10.1 2003/08/18 06:44:37 lavarnd Exp $
+ * @(#) $Revision: 10.3 $
+ * @(#) $Id: pwc_drvr.c,v 10.3 2003/08/25 08:45:25 lavarnd Exp $
  *
  * Copyright (c) 2000-2003 by Landon Curt Noll and Simon Cooper.
  * All Rights Reserved.
@@ -1641,10 +1641,9 @@ pwc_print(FILE * stream, int cam_fd, union lavacam *u_cam_p,
     fprintf(stream, "\ncamera sanity check parameters:\n");
     fprintf(stream, "\t%d most frequent octet values are considered common\n",
     		    siz->top_x);
-    fprintf(stream, "\tmin fraction of bits same in next frame: %.6f\n",
-    		    siz->diff_fract);
-    fprintf(stream, "\tmax fraction of bits same in next frame: %.6f\n",
-    		    1.0 - siz->diff_fract);
+    fprintf(stream, "\tmax fraction of frame containing common octet "
+    		    "values: %.6f\n",
+    		    1.0 - siz->min_fract);
     fprintf(stream, "\t%d most common values must be < 1/2 of frame octets\n",
     		    siz->half_x);
     fprintf(stream, "\tmin fraction of bits same in next frame: %.6f\n",
