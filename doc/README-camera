@@ -1,0 +1,349 @@
+How to add a support for a new camera for LavaRnd
+=================================================
+
+    for LavaRnd version 0.1.0
+
+
+XXX - add more documentation on how to add support for a new type of camera
+XXX - also talk about lavaurl
+
+QUICK START:
+-----------
+
+    LavaRnd has sub-drivers for the following Video4Linux webcam modules:
+
+    	pwc
+	ov511
+
+    As of Aug-2003, the following webcams have been tested:
+
+	pwc730  	Logitech QuickCam 3000 Pro	module: pwc
+	pwc740		Philips 740 camera	module: pwc
+	dsbc100		D-Link DSB-C100 camera	module: ov511
+
+    NOTE: You should run the following command to get the current list:
+
+	tool/camget list all
+
+    you will get the complete list of supported cameras.
+    Try that command in case the above list is out of date.
+
+    You may need to set the library path if libs are compiled
+    but not installed:
+
+	LD_LIBRARY_PATH=lib/shared tool/camget list all
+
+
+adding support for a new webcam:
+-------------------------------
+
+    If you have a webcam that is not currently supported by LavaRnd
+    you will need to modify the LavaRnd source to support it.
+    How much and what you need to modify depends on if it uses
+    an existing module or not.
+
+    First of all, for Linux users: your camera needs to be supported
+    by your kernel.  If it is not, you need to figure out how it
+    can be used.  SORRY: WE CANNOT HELP YOU GET YOUR CAMERA WORKING
+    UNDER LINUX.  Try talking to the camera manufacturers, look
+    around on-line, look at:
+
+    	http://www.qbik.ch/usb/devices/
+	http://www.qbik.ch/usb/devices/showdevcat.php?id=9
+
+    install / configure drivers ... whatever you need to do to
+    get your webcam working under Linux.
+
+    	NOTE: When we port this to another OS, we will need to
+	      update this entire document on how to support it.
+	      It is likely that some additional code mods will
+	      be needed to deal with non-Linux OS ports.
+
+    Assuming that your webcam DOES work under Linux, the next think you
+    need to do is determine which kernel module supports it.  If you
+    do not know look around on-line, or ask other owners of the same
+    camera, or look at the above USB URLs.  Assuming that plugging it
+    in cases a kernel module to be loaded, you can try this experiment:
+
+    	1) unplug your webcam
+	2) reboot
+	3) run lsmod to list your current modules and save the output
+	4) plug your webcam
+	5) run lsmod again and see what changed
+
+    You can try looking as /var/log/messages to see if it gives you
+    any informative messages about the kernel module being used.
+
+    So hopefully now you have a Linux supported webcam and you know
+    the kernel module that supports it.  Look at the output of
+    the 'tool/camget list all' command (see above).  If you see
+    a 'module: name' follow directions in the the section titled:
+
+    	adding a new model for a LavaRnd supported module
+
+    For example in Aug-2003, pwc and ov511 webcam modules were
+    supported.  If your Linux supported camera uses one of those
+    kernel modules you would proceed to that section.
+
+    If your Linux supported camera uses a kernel module that has
+    not been ported to LavaRnd, you will need to write support
+    for a new module.  See the section titled:
+
+    	adding support for a new module
+
+=-=
+
+adding a new model for a LavaRnd supported module:
+-------------------------------------------------
+
+    If you have a Linux supported webcam, not currently supported by
+    LavaRnd but using a module that has been ported to LavaRnd, you
+    need to read this section.
+
+    You will need to modify code in the lib source tree.  Of interest
+    to you will be:
+
+    	lib/camop.c
+	lib/___module__drvr.c	(such as pwc_drve.c or ov511_drvr.c)
+
+    You will need to add entries to compiled in tables on those files.
+
+    Your first stop is camop.c.  You need to add an entry to the
+    cam_switch[] array that describes your webcam.  Use the existing
+    structure as a guide.  Here are some hints:
+
+	int model;
+
+	    The model number in a cam_switch entry need only be unique to
+	    those cameras using the same module.  Needs to be >= 0.
+
+	char *module;
+
+	    Name of the module used.  This is an informational string
+	    that only helps people identify which module is being used.
+
+	char *type;
+
+	    This is the short, compact webcam type that is used as
+	    args to tools and is used in the chaos config :driver line
+	    (see doc/README-config).  This string must be unique.
+	    It should only have alphanumeric chars in it.
+
+	char *name;
+
+	    This is the short name used to help humans identify the
+	    type of webcam.  It should not contain whitespace (use _'s
+	    instead).  This is an informational string.
+
+	char *fullname;
+
+	    This is the longer, more verbose (but hopefully not too
+	    verbose) name of the camera.  The fullname is printed by
+	    the lavacam_print_types() function used by things like
+	    the 'camget list all' command.
+
+	function_names, ...
+
+	    For the rest of the function names, copy them from an
+	    existing entry with the same module name.  Function names
+	    should begin with module_.
+
+
+    Now you need to modify the ___module__drvr.c file.  For purposes
+    of discussion, lets pretend we have a new pwc webcam.  We will
+    need to modify pwc_drvr.c.  Let us assume we have a mythical
+    webcam called the "Mythic 5551212".  Let us assume that we
+    previously added the following entry to the cam_switch[] array
+    in camop.c:
+
+	{5551212, "pwc", "myth555", "Mythic_5551212", "Mythic info 5551212",
+	 pwc_get, pwc_set, pwc_LavaRnd,
+	 pwc_check, pwc_print,
+	 pwc_usage, pwc_argv,
+	 pwc_open, pwc_close,
+	 pwc_get_frame, pwc_msync, pwc_wait_frame},
+
+    You will need to add an entry to the lava_state[] array.
+    Your main task is to determine what to add.
+
+    The lava_state[] table for a given module indicates the optimal
+    parameters to achieve maximum entropy and to allow the LavaRnd
+    Digital Blender to receive a good chaotic signal.
+
+    You need to pick some initial values, run some tests, and
+    modify them.  For our initial guess we will use:
+
+    	{5551212, &cam_730740, 10.0, 0, 0.0, 0, 0.0},
+
+    Note that our fictional camera model number was 5551212.  It was a
+    unique modem number to the pwc family.
+
+    We picked the struct pwc_state cam_730740 for our initial settings
+    guess.  If it turns out that these values are bad guesses, we will
+    need to add our own struct pwc_state cam_555 structure and point
+    to it.
+
+    The 10.0 is a good initial guess for webcam startup time (in seconds).
+    Some cameras take a while to warm up.  We have seen webcams that
+    take 10+ seconds to stabilize.  Later on if this is excessive, you
+    can always reduce it.  For now, assume that waiting 10 seconds to
+    use frames after open is a safe decision.
+
+    We set the remaining 4 values to 0:
+
+				..., 0, 0.0, 0, 0.0},
+
+    These values represent the sanity checking conditions under which
+    LavaRnd will reject poor frames.  By setting them to 0, we disable
+    all sanity checking of frames.  It is not good to leave it that
+    way because it will cause LavaRnd to use every frame regardless
+    of quality.
+
+    Now recompile the libraries and install them:
+
+	cd lib
+	make clobber
+	make all
+	su	# become root
+	make install
+	exit	# become normal
+
+    Now recompile the LavaRnd tools:
+
+	cd tool
+	make clobber
+	make all
+
+    Plug in your webcam.  Try to open it:
+
+	camget myth555 /dev/video0
+
+    and see what settings it generates.
+
+    Now cover up your webcam.  Put black electrical tape around the opening,
+    cover it up, or otherwise ensure that no light reaches the webcam CCD.
+
+    Use the camdumpdir tool to dump some frames in a directory:
+
+	cd tool
+	camdumpdir myth555 /dev/video0 /var/tmp/myth555-frames 1000 -L -v 2
+
+	XXX - here is where the missing entropic tool would be used to
+	      measure the entropy of the webcam frames
+
+	NOTE: You can use the y2grey tool to produce a Grey scale RGB ppm
+	      image that can be viewed with your favorite viewer.  The raw
+	      Y Luminance values, however, cannot be directly viewed.
+	      The missing U and V values must be assumed to be grey
+	      scale and a YUV to RGB conversion needs to be made.
+
+    You can modify the settings of the webcam via the camset command.
+    You see what you can set, try:
+
+	camset myth555 -help
+
+    For example to change the brightness from default to 40000:
+
+    	camset myth555 /dev/video0 myth555 -L -b 40000 -v 1
+
+    NOTE: Some cameras do not remember their settings between opens.  Some
+    cameras forget certain settings between camera uses.  Some cameras
+    will not correctly read a setting that you made so even though we
+    attempted to set the brightness to 40000 in the above command, a later
+    camget or the above camset will show the brightness value as unchanged
+    ... even though the camera brightness change can be seen in the frames
+    that camdumpdir produces.
+
+    To get around these forgetful cameras, you may need to continue to
+    this argument with other commands.  For example:
+
+    	camdumpdir myth555 /dev/video0 /var/tmp/foo 100 -L -b 40000 -v 2
+
+    At some point one might get tried of using '-b 40000' and so
+    one would add a new struct pwc_state called cam_555 with the
+    max brightness level element as 40000 instead of PWC_MAX_PICT.
+    One would modify the lava_state[] table entry to point at it:
+
+    	{5551212, &cam_555, 10.0, 0, 0.0, 0, 0.0},
+
+    Now when using -L, you will get this new optimal default settings.
+
+    The final task needed is to determine the sanity check parameters
+    for the webcam.  This involves using the camsanity tool to
+    look for the worse case condition ... adding a little room for
+    margin of error and setting those final 4 values to something
+    non-zero.
+
+    Optimal webcam conditions for noise exist when:
+
+    	1) nil/no visible light reaches the webcam CCD detector
+	2) webcam settings are adjusted for maximum noise
+	3) the webcam is warm
+
+    Normally your webcam should be operating under those conditions.
+    The #1 and #2 conditions are mandatory.  The #3 is a good idea.
+    We place our webcams in a can to trap heat and keep them warm
+    (but not so hot that they fail).
+
+    For your camsanity test, you might want to blow a fan into your
+    webcam to drop its temperature slightly (but not too much).
+    Of course, you still need to do #1 and #2 (don't we all? :-)).
+
+    Try this camsanity command:
+
+    	camsanity myth555 /dev/video0 /var/tmp/myth555 10000 64 -v 2
+
+    After taking 10000 frames, take a look at the bottom of
+    the /var/tmp/myth555/final.stat file.  If you see:
+
+	def_top_x = 14
+	def_min_fract = 0.524558
+	    min_value = 0.600153
+	    sigma_val = 0.015119
+	def_half_x = 11
+	   min_val = 13
+	   sdv_val = 0.252505
+	def_diff_fract = 0.332034
+	      min_diff = 0.359234
+	    sigma_diff = 0.005440
+
+    Then you need to take, in order, the def_top_x, def_min_fract,
+    def_half_x, and def_diff_fract values and replace those
+    final 4 zero values in the lava_state[] table entry:
+
+    	{5551212, &cam_555, 10.0, 14, 0.524558, 11, 0.332034},
+
+    Recompile, install and enjoy.
+
+    ... And of course, send us a patch so that we can add support
+    for your webcam in a future release.  See:
+
+    	http://www.lavarnd.org/about-us/contact-us.html
+
+    for contact information.
+
+
+adding support for a new module:
+-------------------------------
+
+    XXX - write this section
+
+=-=-=
+
+FOR MORE INFO:
+-------------
+
+You can also make individual sub-directories by cd-ing to them
+and doing a 'make all'.  See the file:
+
+	doc/README-src
+
+for information on each sub-directory.
+
+For more info on LavaRnd see:
+
+	http://www.LavaRnd.org/index.html
+
+To contact us / send us EMail related to LavaRnd see:
+
+	http://www.LavaRnd.org/about-us/contact-us.html

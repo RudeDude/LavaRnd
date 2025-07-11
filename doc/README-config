@@ -1,0 +1,290 @@
+How to configure LavaRnd
+==============--========
+
+    for LavaRnd version 0.1.0
+
+QUICK START:
+-----------
+
+    LavaRnd config files are installed under /etc/LavaRnd.  As
+    shipped these config files contain lots of (hopefully useful)
+    comments.  Useful file locations are:
+
+	/etc/LavaRnd/cfg.lavapool	(only used by the lavapool daemon)
+	/etc/LavaRnd/cfg.random-def	(default compiled in client cfg)
+	/etc/LavaRnd/cfg.random		(client cfg - may be missing)
+
+    If /etc/LavaRnd/cfg.random does not exist, then LavaRnd clients
+    will use the default compiled values.
+
+=-=
+
+cfg.random overview:
+-------------------
+
+    Clients use the cfg.random config file (or the compiled in version
+    of it if missing) to determine how to communicate with the lavapool
+    daemon.  The lavapool daemon also uses this config file for the
+    reverse reason.  :-)
+
+    If /etc/LavaRnd/cfg.random does not exist, then the compiled in
+    values will be used.  You can read these compiled in values by
+    reading /etc/LavaRnd/cfg.random-def.  The cfg.random-def file is
+    not really used, it is just there for documentation.
+
+    If you can live with the compiled in values, then you should NOT
+    have a /etc/LavaRnd/cfg.random file.  A lack of a cfg.random file
+    means that client startup time is just a tiny little bit quicker.
+
+    If you need to change a default value, then you should:
+
+	cp /etc/LavaRnd/cfg.random-def /etc/LavaRnd/cfg.random
+
+    and edit cfg.random accordingly.  The cfg.random should be mode 0444
+    so that anyone can read it.
+
+    The cfg.random-def comes from the source file:
+
+	lib/cfg.random-def
+
+=-=
+
+cfg.lavapool overview:
+---------------------
+
+    The lavapool daemon uses the /etc/LavaRnd/cfg.lavapool (along with the
+    cfg.random file or if missing the compiled in cfg.random-def values)
+    to determine how to operate.
+
+    The cfg.lavapool file must exist.  One could move it to a different
+    location and use "-p cfg.lavapool" on the lavapool command line to
+    change its location if needed.
+
+    Clients do not need or use the cfg.lavapool file.  The cfg.lavapool
+    need only be readable by the lavapool daemon, although there is
+    no real harm if somebody looks at it.
+
+    The cfg.lavapool comes from the source file:
+
+	daemon/cfg.lavapool
+
+=-=
+
+cfg.random details:
+------------------
+
+    The cfg.random (or compiled in cfg.random-def defaults), as shipped
+    contain comments that discuss each value in detail.  We will only
+    make a few additional comments:
+
+    lavapool=127.0.0.1:23209
+
+	This is the host:tcp_port number on which the lavapool daemon
+	will listen for requests.  The 23209/tcp port as an unassigned
+	port number.  If your LavaRnd lavapool daemon is just serving
+	local requests, then you should use the 127.0.0.1 IP address.
+
+	If you are serving requests from multiple machines, you should
+	use a hostname or IP address that is reachable from those
+	multiple machines.
+
+	As the time of the 1st release, we were in process of applying
+	for 23209/tcp port assignment as 'lavarnd', the 'LavaRnd lavapool'
+	port.  It is possible that our request will be declined, in
+	which case we will continue to use 23209/tcp port as an
+	unassigned port number.  It is possible that our request
+	will be approved for a different port number.  If that happens
+	we will change the port in a future release.  Existing
+	configurations can either maintain the old port or recompile
+	to get the new defaults.
+
+    maxrequest=65536
+
+	This is the largest request that lavapool will satisfy.
+	You can increase this value up to 1048576 (1 Megabyte).
+	Beyond that, you will have to change the constant
+	LAVA_MAX_LEN_ARG in <LavaRnd/cfg.h> and recompile.
+
+    exit_retries=3
+    exit_min_wait=2.0
+    exit_max_wait=6.0
+
+	These parameters control how LAVACALL_LAVA_EXIT works.
+	See doc/README-API for details.
+
+    retry_min_wait=2.0
+    retry_inc_wait=2.0
+    retry_max_wait=6.0
+
+	These parameters control how LAVACALL_LAVA_RETRY works.
+	See doc/README-API for details.
+
+    return_retries=3
+    return_min_wait=2.0
+    return_max_wait=6.0
+
+	These parameters control how LAVACALL_LAVA_RETURN works.
+	See doc/README-API for details.
+
+    s100_retries=3
+    s100_preseed_amt=1025
+    s100_min_wait=2.0
+    s100_max_wait=6.0
+
+	These parameters control how LAVACALL_S100_* work, or how
+	LAVACALL_TRYONCE_* or LAVACALL_TRY_* work when falling back to
+	using the s100 generator.  See doc/README-API for details.
+
+    def_callback_wait=4.0
+
+	This controls the default timeout that a callback function
+	can use.  The double lava_timeout(double timeout) function
+	can override this default.
+
+    preload_wait=2.0
+
+	When calling one of the fake seed functions (see doc/README-API)
+	this is the amount of time to wait before it pre-loads an
+	internal buffer with data.
+
+=-=
+
+cfg.lavapool details:
+--------------------
+
+    chaos=:driver pwc730 /dev/video0 -L
+
+	This defines the source of chaos used by the lavapool daemon.
+
+	The leading :driver means that the camop driver interface
+	facility is used.
+
+	The 2nd arg (in the above case pwc730) is the camera type.
+	One can get a list of supported camera types with the command:
+
+		LD_LIBRARY_PATH=lib/shared tool/camget list all
+
+	where lib/shared is the path to the shared lib sub-directory
+	in the source tree.
+
+	The 3rd arg (in the above case /dev/video0) is the webcam device
+	name.  It is usually something like /dev/video0 or /dev/video.
+
+	Beyond the 3rd argument, are -options and other driver flags.
+	You can determine the -options and other driver flags by
+	using the command:
+
+	    LD_LIBRARY_PATH=lib/shared tool/camget camera_type -help
+
+	where camera_type is something like pwc730.
+
+	You should, at a minimum, use -L.  This will cause the
+	default optimal LavaRnd settings for that camera_type
+	to be used.
+
+	There is a facility where lavapool can be directed to dump
+	a raw webcam frame to a file during a given interval.
+	Just give the path to the savefile and an interval (in
+	seconds) as the final 2 arguments.  If you use -E before
+	these final to args, the frame will only be dumped if
+	the file does not exist.
+
+    chaos=/usr/sbin/lavaurl -v 1 -a -l logfile http://chaotic.url
+
+	This is a deprecated form of obtaining chaotic data.  Using
+	the lavaurl, the lavapool collects data by using the content
+	of that URL as chaotic data.  Of course, if the contents of
+	the URL is not very chaotic, then lavapool will produce
+	bogus values.
+
+	For what it is worth, the lavaurl command has the following
+	usage message:
+
+	./lavaurl [-h] [-a] [-l logfile] [-S] [-Q] [-N] [-v dbg] \
+	    url [len [rate [minurl]]]
+
+	    -h           output this usage message
+	    -a           adjust rate according to internal buffer level
+	    -l logfile   append debug / error messages to log
+	    -S           send debug, warnings and error messages to syslog
+	    -Q           dont send debug, warnings & error messages to stderr
+	    -N           do not add a system state prefix to URL contents
+	    -v dbg       debug level
+	    -t           timing test, use a single URL (not for normal use)
+	    url          chaotic source URL
+	    len          output size (0==>no limit, def==>0)
+	    rate         output rate factor (def: 1.0,<1.0 faster,>1.0 slower)
+	    minurl       min length of url content (0==>no min, def==>0)
+
+    fastpool=1048576
+    slowpool=4194304
+    poolsize=8388608
+
+	The poolsize value is the size of the lava pool (buffer of LavaRnd
+	random data) used by the lavapool daemon.  The lavapool daemon
+	will not collect more than this amount of data from the
+	chaotic source.
+
+	The fastpool value is the level below which the lavapool daemon
+	attempts to fill the buffer quickly.
+
+	The slowpool value is the level above fastpool but below which
+	the lavapool daemon attempts to fill the buffer at a normal rate.
+	Beyond the slowpool level, lavapool fills the pool much slower.
+
+	Adjust the poolsize as needed.	You might want to increase the
+	poolsize is you use a lot of random data.  You probably want to
+	keep poolsize at least 8megs.
+
+	Typically, you should set slowpool to be 1/2 the value of the
+	poolsize.  The fastpool value should typically be the lesser of
+	1/8 the poolsize or 1048576.
+
+    fast_cycle=0.033333
+    slow_cycle=20.0
+
+	These control the rate at which lavapool fills the pool
+	based on the level relative to the fastpool and slowpool
+	levels.
+
+    maxclients=16
+
+	This is the maximum number of simultaneous client connections
+	that the lavapool daemon will handle.
+
+    timeout=6.0
+
+	The lavapool daemon will close down any client connection
+	that does not submit a request in timeout seconds.
+
+    prefix=1
+
+	If the prefix value is 1, then some system state will be added
+	to the URL return or chaos driver output for LavaRnd processing.
+	The system state data is very likely to be poor in entropy.
+	It does, however, serve as a salt.
+
+	If the prefix value is 0, then no system state will be used.
+
+=-=-=
+
+FOR MORE INFO:
+-------------
+
+For information on the LavaRnd API, read:
+
+	doc/README-API
+
+To learn how to compile, install and test LavaRnd, read:
+
+	doc/README-compile
+	doc/README-install
+	doc/README-test
+
+For more info on LavaRnd see:
+
+	http://www.LavaRnd.org/index.html
+
+To contact us / send us EMail related to LavaRnd see:
+
+	http://www.LavaRnd.org/about-us/contact-us.html

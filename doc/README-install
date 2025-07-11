@@ -1,0 +1,104 @@
+How to install LavaRnd
+======================
+
+    for LavaRnd version 0.1.0
+
+QUICK START:
+-----------
+
+    If you have not ready compiled LavaRnd, see the file:
+
+	doc/README-compile
+
+    To install LavaRnd with the default configuration:
+
+	cd your_src_tree/LavaRnd-0.1.0
+
+	# NOTE: cameradev is your camera device name, it is often
+	#
+	#		/dev/video0 or /dev/video
+	#
+	# NOTE: camtype is one of the supported camera types, the command:
+	#
+	#		LD_LIBRARY_PATH=lib/shared tool/camget list all
+	#
+	#	will print a list of supported camtypes
+	#
+	# Example:
+	#
+	#	make install LAVARND_VIDEODEV=/dev/video0 LAVARND_CAMTYPE=pwc730
+
+	make install LAVARND_VIDEODEV=cameradev LAVARND_CAMTYPE=camtype
+
+	# unplug your supported webcams
+
+	# disable any previously loaded webcam modules
+	tool/unload_modules
+
+	# force modules to be configured correctly
+	(cd daemon; make usb_setup)
+
+	# now plug your supported webcam back in
+
+	# start LavaRnd
+
+	chkconfig LavaRnd on
+	/etc/init.d/LavaRnd start
+
+=-=
+
+starting trickle:
+----------------
+
+    On systems that have /dev/random, one can slightly improve the quality
+    of the that generator by using trickle:
+
+	# start trickle (optional)
+
+	chkconfig trickle on
+	/etc/init.d/trickle start
+
+    The trickle daemon will add LavaRnd random data to the /dev/random
+    mixing pool.  In doing so it does not change /dev/random's vague
+    notion of the amount of entropy available, but it does contribute
+    high quality random noise to help frustrate /dev/random attacks.
+
+    By chkconfig trickle on, it will preload /dev/random with quality
+    random data and help avoid initial state replay attacks.
+
+    NOTE: Use of trickle requires the LavaRnd Perl interface to be working.
+    	  You may have to re-install LavaRnd to get this to work.  See
+	  the doc/BUGS file for details.
+
+
+=-=-=
+
+FOR MORE INFO:
+-------------
+
+You can read how to modify the source to support a new camera type by reading:
+
+	doc/README-camera
+
+To learn about LavaRnd configuration files, read:
+
+	doc/README-config
+
+You can now test your LavaRnd.  See the file:
+
+	doc/README-test
+
+You can also make individual sub-directories by cd-ing to them
+and doing a 'make all'.  See the file:
+
+	doc/README-src
+
+for information on each sub-directory.
+
+For more info on LavaRnd see:
+
+	http://www.LavaRnd.org/index.html
+
+To contact us / send us EMail related to LavaRnd see:
+
+	http://www.LavaRnd.org/about-us/contact-us.html

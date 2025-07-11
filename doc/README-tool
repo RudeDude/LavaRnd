@@ -1,0 +1,231 @@
+Development and test tools
+==========================
+
+    for LavaRnd version 0.1.0
+
+
+QUICK START:
+-----------
+
+    Some of the tools are useful for developers and testers of LavaRnd.
+    A few (but not all) of these tools are useful examples of the
+    LavaRnd API (see doc/README-API for which ones).  None of these
+    tools are required by applications that need LavaRnd random numbers.
+
+    Applications should use the API instead of attempting to abuse
+    the tools.  See doc/README-API for more information.
+
+    NOTE: The tool Makefile installs these programs under
+    	  /usr/bin/lavatool by default.
+
+
+LavaRnd tools:
+-------------
+
+    baseconv
+	Convert between ASCII 0's & 1's, ASCII hex, ASCII base64, binary
+
+	usage: baseconv {b256|b64|b16|b2} {b256|b64|b16|b2}
+
+		b256	input/output in binary format (alias: bin)
+		b64	input/output in base64 format
+		b16	input/output in hex format (alias: hex)
+		b2	input/output in base 2 format
+
+    camdump
+	output Y Luminance data from a camera
+
+	usage: camdump cam_type dev len outfile [-flags ... args ...]
+
+		cam_type	camera type
+		dev		camera device name
+		len		output length as follows:
+		    -1 ==> infinite output
+		     0 ==> single frame
+		    >0 ==> output len octets from as many frames as needed
+		outfile		where to output frame data (- ==> stdout)
+
+	for help on -flags and args, try:  ../camdump cam_type -help
+	for list of allowed cam_type, try: ../camdump list all
+
+    camdumpdir
+	dump Y Luminance camera data into separate files in a directory
+
+	usage: camdumpdir cam_type dev dir count [-flags ... args ...]
+
+		cam_type    camera type
+		dev	    camera device name
+		dir	    directory into which lumanance frames are written
+		count	    number of frames to write into dir
+
+	for help on -flags and args, try:  ../camdumpdir cam_type -help
+	for list of allowed cam_type, try: ../camdumpdir list all
+
+    camget
+	Get the current camera state
+
+	usage: camget cam_type devname
+	       camget list all
+	       camget cam_type -help
+
+    camsanity
+	determine sanity parameters of a camera
+
+	usage: camsanity cam_type dev dir count top_x [-flags ... args ...]
+
+    camset
+	Set the current camera state
+
+	usage: camset cam_type devname [-flags ... args ...]
+	       camset list all
+	       camset cam_type -help
+
+    chk_lavarnd
+	validity check the core of the LavaRnd algorithm
+
+	usage: chk_lavarnd -v debug_level
+
+    imgtally
+	perform tally and other stats on a series of images
+
+	usage: imgtally cam_type dev count tally_file [-flags ... args ...]
+
+		cam_type	camera type
+		dev		camera device name
+		count		frames to process
+		tally_file	where write statistical info
+
+	for help on -flags and args, try:  ../imgtally cam_type -help
+	for list of allowed cam_type, try: ../imgtally list all
+
+    lavadump
+	write LavaRnd Digital Blender processed frames to stdout
+
+	usage: lavadump cam_type dev len rate [-flags ... args ...]
+
+		cam_type	camera type
+		dev		camera device name
+		len		output length as follows:
+		    -1 ==> infinite output
+		     0 ==> single frame
+		    >0 ==> output len octets from as many frames as needed
+		rate		LavaRnd alpha rate factor (try: 1.0)
+
+	for help on -flags and args, try:  ../lavadump cam_type -help
+	for list of allowed cam_type, try: ../lavadump list all
+
+    lavaop
+	perform a single lavapool requisition operation
+
+	usage: lavaop [-r cfg.random] length [callback]
+
+		callback arg must be one of these integers:
+
+		1	LAVACALL_LAVA_EXIT (def)
+		2	LAVACALL_LAVA_RETRY
+		3	LAVACALL_LAVA_RETURN
+		4	LAVACALL_TRY_HIGH
+		5	LAVACALL_TRY_MED
+		6	LAVACALL_TRY_ANY
+		7	LAVACALL_TRYONCE_HIGH
+		8	LAVACALL_TRYONCE_MED
+		9	LAVACALL_TRYONCE_ANY
+		10	LAVACALL_S100_HIGH
+		11	LAVACALL_S100_MED
+		12	LAVACALL_S100_ANY
+
+    lavaop_i
+	perform a lavapool requisition operation ops interactively
+
+	usage: lavaop_i [-r cfg.random] outfile
+
+    poolout
+	output data from the lavapool daemon
+
+	usage: poolout [-v] len cycles usec-pause
+
+		-v		verbose msgs to stderr
+		len		cycle output length in octets
+		cyles		total output cycles
+		usec-pause	microsecond pause between cycles
+
+    ppmhead
+	Form a ppm file header for a given width and height
+
+	usage: ppmhead rows cols
+
+    test_perllib
+	Test the LavaRnd PERL APIs
+
+	usage: test_perllib
+
+    test_tryrnd
+	Test all of the random / random_libc LavaRnd C APIs
+
+	usage: test_tryrnd
+
+    tryrnd_exit
+    tryrnd_retry
+    tryrnd_return
+    tryrnd_s100_any
+    tryrnd_s100_high
+    tryrnd_s100_med
+    tryrnd_try_any
+    tryrnd_try_high
+    tryrnd_try_med
+    tryrnd_tryonce_any
+    tryrnd_tryonce_high
+    tryrnd_tryonce_med
+	Test a random / random_libc LavaRnd C API
+
+	NOTE: You can execute these programs individually.  They do
+	      not take any arguments.  You can run them all by
+	      using the test_tryrnd tool.
+
+    unload_modules
+	Unloads all known kernel modules that LavaRnd might want to use
+
+	usage: unload_modules
+
+    y2grey
+	read Y Luminance values, output pseudo Grey scale RGB ppm image
+
+        usage: y2grey width height file
+
+    y2pseudoyuv
+	read Y Luminance values, output psuedocolor YUV YUV4:2:0 planar
+
+	usage: y2pseudoyuv width height file
+
+    y2yuv
+	read Y Luminance values, output Grey scale YUV YUV4:2:0 planar
+
+	usage: y2yuv width height file
+
+    yuv2ppm
+	read YUV YUV4:2:0 planar, output pseudo Grey scale RGB ppm image
+
+	usage: yuv2ppm width height file
+
+=-=-=
+
+FOR MORE INFO:
+-------------
+
+For information on the LavaRnd API, read:
+
+	doc/README-API
+
+To learn how to compile, install and test LavaRnd, read:
+
+	doc/README-compile
+	doc/README-install
+	doc/README-test
+
+For more info on LavaRnd see:
+
+	http://www.LavaRnd.org/index.html
+
+To contact us / send us EMail related to LavaRnd see:
+
+	http://www.LavaRnd.org/about-us/contact-us.html

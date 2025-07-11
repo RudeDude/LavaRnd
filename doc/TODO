@@ -1,0 +1,39 @@
+Things to be with the LavaRnd version 0.1.0 code:
+
+
+QUICK START:
+-----------
+
+    You can help the LavaRnd SourceForge project.  Volunteers wanted.  See
+
+	http://www.lavarnd.org/about-us/contact-us.html
+
+    for details.
+
+=-=
+
+Short term:
+----------
+
+    * fix typos / clean up / improve the doc README files
+    * complete doc/README-camera
+    * complete doc/README-src
+    * add the entropic tool to LavaRnd's tool set (we ran out of time
+      to port this tool ... should be in the next release ... sorry!)
+
+=-=
+
+Wish list:
+---------
+
+    * Add support for more types of webcams
+    * Write LandRnd man pages
+    * Build rpms for LavaRnd
+    * Change build process to use GNU configure
+    * Write a Java interface
+    * Write a Python interface
+    * Write a Ruby interface
+    * Write other language interfaces
+    * Port to OS/X
+    * Port to FreeBSD
+    * Port to other OSs

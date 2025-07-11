@@ -1,0 +1,325 @@
+#
+# cfg.random-def - default configuration of the lavapool daemon
+#
+#     ####################################################################
+#     #	DO NOT EDIT THE cfg.random-def file, EDIT cfg.random INSTEAD !!! #
+#     ####################################################################
+#
+# NOTE: If the cfg.random file (usually located in /etc/LavaRnd/cfg.random)
+#	does not exist, then all configuration values take on their defaults.
+#
+#	You can slightly speed up connections to the lavapool daemon by
+#	not having a cfg.random file and just using the builtin defaults.
+#
+#	If you do need to change a default configuration, just copy the
+#	few config lines from cfg.random-def into cfg.random that you need
+#	to change and the defaults will take care of the rest.
+#
+# Copyright (c) 2000-2003 by Landon Curt Noll and Simon Cooper.
+# All Rights Reserved.
+#
+# This is open software; you can redistribute it and/or modify it under
+# the terms of the version 2.1 of the GNU Lesser General Public License
+# as published by the Free Software Foundation.
+#
+# This software is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General
+# Public License for more details.
+#
+# The file COPYING contains important info about Licenses and Copyrights.
+# Please read the COPYING file for details about this open software.
+#
+# A copy of version 2.1 of the GNU Lesser General Public License is
+# distributed with calc under the filename COPYING-LGPL.  You should have
+# received a copy with calc; if not, write to Free Software Foundation, Inc.
+# 59 Temple Place, Suite 330, Boston, MA  02111-1307, USA.
+#
+# For more information on LavaRnd: http://www.LavaRnd.org
+#
+# Share and enjoy! :-)
+
+# lavapool
+#
+# The lavapool value the hostname and port number on which the lavapool
+# daemon listens for user requests.  It is of the form hostname:port.
+# The hostname may be a hostname (e.g., lavacam), a domain (e.g. www.eff.org),
+# or and IP address (e.g., 192.168.144.120).  The port may be a TCP
+# port number (e.g., 23209) or a TCP port service name.
+#
+# NOTE: It must be the case that: lavapool has a : between two strings.
+#	The default lavapool value is 127.0.0.1:23209 (localhost port tcp/23209)
+#
+lavapool=127.0.0.1:23209
+
+# maxrequest
+#
+# The maxrequest value is the largest amount of random data that a user
+# may request at one time.
+#
+# NOTE: It must be the case that: maxrequest <= 1 Megabyte (1048576)
+#	The default maxrequest value is 64 Kilobytes (65536).
+#
+maxrequest=65536
+
+# exit_retries
+#
+# When the LAVACALL_LAVA_EXIT callback function is specified, internal LavaRnd
+# function will attempt to obtain data from the lavapool daemon exit_retries
+# times.  If after that many ties they fail to obtain the requested
+# random data, then the internal function will cause the program to exit.
+#
+# NOTE: It must be the case that: exit_retries >= 0
+#	The default exit_retries value is 3 retries.
+#
+exit_retries=3
+
+# exit_min_wait
+#
+# When the LAVACALL_LAVA_EXIT callback function is specified, internal LavaRnd
+# will wait up to exit_min_wait seconds before giving up on a request
+# to the lavapool daemon.  If exit_retries permits a retry, the internal
+# function will also pause exit_min_wait seconds before retrying the
+# first time.
+#
+# The exit_min_wait value may be a floating point value.
+#
+# NOTE: It must be the case that: 0 < exit_min_wait < exit_max_wait
+#	The default value of exit_min_wait is 2.0 seconds.
+#
+exit_min_wait=2.0
+
+# exit_max_wait
+#
+# When the LAVACALL_LAVA_EXIT callback function is specified, and exit_retries
+# permits retry attempts, the timeout period for lavapool requests
+# and the pause period between requests increases.  Both increase at
+# a linear rate so that on the last retry, the period is exit_max_wait
+# seconds.
+#
+# The exit_max_wait value may be a floating point value.
+#
+# NOTE: It must be the case that: 0 < exit_min_wait < exit_max_wait
+#	The default value of exit_max_wait is 6.0 seconds.
+#
+exit_max_wait=6.0
+
+# retry_min_wait
+#
+# When the LAVACALL_LAVA_RETRY callback function is specified, internal LavaRnd
+# will keep retrying to send requests to the lavapool daemon on errors.
+# The very first lavapool daemon timeout period is retry_min_wait seconds.
+# Each subsequent retry adds retry_inc_wait seconds to the wait time
+# until (and limited by) retry_max_wait is reached.
+#
+# On the 2nd and later retries, the program pauses for retry_inc_wait
+# seconds before attempting to contact the lavapool daemon.  The retry
+# time is also the timeout for waiting for the lavapool daemon.
+#
+# The retry_min_wait value may be a floating point value.
+#
+# NOTE: It must be the case that: 0 < retry_min_wait < retry_max_wait
+#	The default value of retry_min_wait is 2.0 seconds.
+#
+retry_min_wait=2.0
+
+# retry_inc_wait
+#
+# When the LAVACALL_LAVA_RETRY callback function is specified, internal LavaRnd
+# will keep retrying to send requests to the lavapool daemon on errors.
+# The very first lavapool daemon timeout period is retry_min_wait seconds.
+# Each subsequent retry adds retry_inc_wait seconds to the wait time
+# until (and limited by) retry_max_wait is reached.
+#
+# On the 2nd and later retries, the program pauses for retry_inc_wait
+# seconds before attempting to contact the lavapool daemon.  The retry
+# time is also the timeout for waiting for the lavapool daemon.
+#
+# The retry_inc_wait value may be a floating point value.
+#
+# NOTE: It must be the case that: 0 <= retry_inc_wait.
+#	The default value of retry_inc_wait is 2.0 seconds.
+#
+retry_inc_wait=2.0
+
+# retry_max_wait
+#
+# When the LAVACALL_LAVA_RETRY callback function is specified, internal
+# LavaRnd will keep retrying to send requests to the lavapool daemon on errors.
+# The very first lavapool daemon timeout period is retry_min_wait seconds.
+# Each subsequent retry adds retry_inc_wait seconds to the wait time
+# until (and limited by) retry_max_wait is reached.
+#
+# On the 2nd and later retries, the program pauses for retry_inc_wait
+# seconds before attempting to contact the lavapool daemon.  The retry
+# time is also the timeout for waiting for the lavapool daemon.
+#
+# The retry_max_wait value may be a floating point value.
+#
+# NOTE: It must be the case that: 0 < retry_min_wait < retry_max_wait
+#	The default value of retry_max_wait is 6.0 seconds.
+#
+retry_max_wait=6.0
+
+# return_retries
+#
+# When the LAVACALL_LAVA_RETURN callback function is specified, internal
+# LavaRnd function will attempt to obtain data from the lavapool daemon
+# return_retries times.  If after that many ties they fail to obtain the
+# requested random data then the internal function will return LAVAERR_TIMEOUT.
+#
+# NOTE: It must be the case that: return_retries >= 0
+#	The default return_retries value is 3 retries.
+#
+return_retries=3
+
+# return_min_wait
+#
+# When the LAVACALL_LAVA_RETURN callback function is specified, internal
+# LavaRnd will wait up to exit_min_wait seconds before giving up on a request
+# to the lavapool daemon.  If return_retries permits a retry, the internal
+# function will also pause return_min_wait seconds before retrying the
+# first time.
+#
+# The return_min_wait value may be a floating point value.
+#
+# NOTE: It must be the case that: 0 < return_min_wait < return_max_wait
+#	The default value of return_min_wait is 2.0 seconds.
+#
+return_min_wait=2.0
+
+# return_max_wait
+#
+# When the LAVACALL_LAVA_RETURN callback function is specified, and
+# return_retries permits retry attempts, the timeout period for lavapool
+# requests and the pause period between requests increases.  Both increase at
+# a linear rate so that on the last retry, the period is return_max_wait
+# seconds.
+#
+# The return_max_wait value may be a floating point value.
+#
+# NOTE: It must be the case that: 0 < return_min_wait < return_max_wait
+#	The default value of return_max_wait is 6.0 seconds.
+#
+return_max_wait=6.0
+
+# s100_retries
+#
+# When a callback function is used that needs to seed the s100 generator
+# LavaRnd data, internal LavaRnd function will attempt to obtain quality
+# seed data from the lavapool daemon s100_retries times.  If after that
+# many ties they fail to obtain the requested random data then the
+# internal function will give up trying to see with quality seed data.
+# Giving up means that no futther attempts to seed with LavaRnd data
+# will be made.  If the s100 quality does not permit the use of a
+# degraded seed, an LAVAERR_POORQUAL error will be returned.
+#
+# NOTE: It must be the case that: s100_retries >= 0
+#	The default s100_retries value is 3 retries.
+#
+s100_retries=3
+
+# s100_preseed_amt
+#
+# In cases where the private s100 generator is used as a fallback generator,
+# we need to know when to preseed it.
+#
+# One the one hand we want the private s100 generator to be ready in case
+# it is needed.  The private s100 generator is used as a fallback generator
+# when any of the LAVACALL_TRY{,ONCE}_* callbacks or user defined callbacks
+# fail to connect to the lavapool daemon.
+#
+# On the other hand seeding a s100 generator requires 1832 octets of lavapool
+# data.  It would be a waste to ask for only a few octets of lavapool, preseed
+# the private s100 generator, successfully receive the requested lavapool
+# octets and then exit thereby wasting lavapool data on a uneeded s100 seed.
+#
+# If s100_preseed_amt >= 0 and a callback other than LAVACALL_{S100,LAVA}_*
+# is used, then the private s100 generator will be preseeded before we
+# attempt to output s100_preseed_amt octets of lavapool data.
+#
+# If s100_preseed_amt == -1, then the s100 generator will not be preseeded.
+#
+# If a LAVACALL_{S100,LAVA}_* callbacks are used, the s100_preseed_amt has
+# no effect.
+#
+# Directly calling s100_load, s100_unload, s100_turn, s100_randomcpy,
+# s100_loadleft, or s100_quality (even with a NULL s100 state pointer)
+# does NOT use the private s100 generator.  Such calls do not touch
+# the private s100 generator, nor impact the readyness of the fallback
+# s100 generator, nor are they affected by s100_preseed_amt.
+#
+# You can force the fallback s100 generator to be preseeded, regardless of the
+# s100_preseed_amt value when:
+#
+#   liblava_libc.a is used with a liblava_s100_*.a library (or when
+#	it is used with a LAVACALL_S100_* callback) and any of the
+#	erand48, nrand48, jrand48, srand, srandom, initstate, setstate,
+#	srand48, seed48, or lcong48 libc enumation functions are called.
+#
+#   The lava_preload() function is called with TRUE 2nd argument.
+#	For example, the private s100 generator will be preloaded with
+#	the call lava_preload(-1, 1).
+#
+# NOTE: It must be the case that: s100_preseed_amt >= -1
+#	The default s100_preseed_amt value is 1025 octets.
+#
+s100_preseed_amt=1025
+
+# s100_min_wait
+#
+# When a callback function is used that needs to seed the s100 generator
+# LavaRnd data, internal LavaRnd function will wait up to s100_min_wait
+# seconds before giving up on a request to the lavapool daemon.  If
+# s100_retries permits a retry, the internal function will also pause
+# s100_min_wait seconds before retrying the first time.
+#
+# The return_min_wait value may be a floating point value.
+#
+# NOTE: It must be the case that: 0 < s100_min_wait < s100_max_wait
+#	The default value of s100_min_wait is 2.0 seconds.
+#
+s100_min_wait=2.0
+
+# s100_max_wait
+#
+# When a callback function is used that needs to seed the s100 generator
+# LavaRnd data, and s100_retries permits retry attempts, the timeout
+# period for lavapool requests and the pause period between requests
+# increases.  Both increase at a linear rate so that on the last retry,
+# the period is s100_max_wait seconds.
+#
+# The s100_max_wait value may be a floating point value.
+#
+# NOTE: It must be the case that: 0 < s100_min_wait < s100_max_wait
+#	The default value of s100_max_wait is 6.0 seconds.
+#
+s100_max_wait=6.0
+
+# def_callback_wait
+#
+# When an explicit callback function pointer is specified (i.e., it
+# is not one of the LAVACALL_XYZ functions) the time to wait
+# for a lavapool daemon response is def_callback_wait seconds.
+# The lava_timeout(0.0) call will obtain this value and the
+# lava_timeout(timeout) will will set it.
+#
+# The The value may be a floating point value.
+#
+# NOTE: It must be the case that: 0 < def_callback_wait
+#	The default value of def_callback_wait is 4.0 seconds.
+#
+def_callback_wait=4.0
+
+# preload_wait
+#
+# When calling lava_preload() to pre-load the generators, wait
+# for up to lava_preload seconds before giving up and returning
+# and error.
+#
+# The preload_wait value may be a floating point value.
+#
+# NOTE: It must be the case that: 0 < preload_wait
+#	The default value of preload_wait is 2.0 seconds.
+#
+preload_wait=2.0

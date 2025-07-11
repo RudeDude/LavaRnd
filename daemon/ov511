@@ -1,0 +1,62 @@
+#!/bin/bash
+#
+# ov511 webcam module setup
+#
+# Copyright (c) 2000-2003 by Landon Curt Noll and Simon Cooper.
+# All Rights Reserved.
+#
+# This is open software; you can redistribute it and/or modify it under
+# the terms of the version 2.1 of the GNU Lesser General Public License
+# as published by the Free Software Foundation.
+#
+# This software is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General
+# Public License for more details.
+#
+# The file COPYING contains important info about Licenses and Copyrights.
+# Please read the COPYING file for details about this open software.
+#
+# A copy of version 2.1 of the GNU Lesser General Public License is
+# distributed with calc under the filename COPYING-LGPL.  You should have
+# received a copy with calc; if not, write to Free Software Foundation, Inc.
+# 59 Temple Place, Suite 330, Boston, MA  02111-1307, USA.
+#
+# For more information on LavaRnd: http://www.LavaRnd.org
+#
+# Share and enjoy! :-)
+#
+
+# setup
+#
+LAVARND_VIDEODEV=/dev/video0
+LAVARND_USER=lava
+LAVARND_GROUP=lava
+/usr/bin/logger -p daemon.notice -t hotplug/usb/pwc -i begin ov511 setup
+
+# remove the ov511 module in case it was setup before with other flags
+#
+MODULE="`/sbin/lsmod 2>/dev/null | /bin/grep '^ov511[ 	]' 2>/dev/null`"
+if [ -n "$MODULE" ]; then
+    /sbin/rmmod ov511 >/dev/null 2>&1
+fi
+
+# start ov511 with LavaRnd optimal flags
+#
+/sbin/modprobe ov511 autobright=1 autogain=1 autoexp=1 fastset=1 compress=0 force_palette=15
+
+# setup video device permissions
+#
+/bin/chown ${LAVARND_USER}.${LAVARND_GROUP} ${LAVARND_VIDEODEV}
+/bin/chmod 0660 ${LAVARND_VIDEODEV}
+
+# tell the world what we did
+#
+MODULE="`/sbin/lsmod 2>/dev/null | /bin/grep '^ov511[ 	]' 2>/dev/null`"
+if [ -n "$MODULE" ]; then
+    /usr/bin/logger -p daemon.notice -t hotplug/usb/ov511 -i ov511 setup complete
+else
+    /usr/bin/logger -p daemon.notice -t hotplug/usb/ov511 -i ov511 setup failed
+    exit 1
+fi
+exit 0

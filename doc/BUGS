@@ -1,0 +1,28 @@
+Known bugs with LavaRnd version 0.1.0 code:
+
+* Perl modules do not load:
+  2003-08-17
+
+    On a few systems, the Perl modules (and tool/test_perllib) fail to load:
+
+	#     Failed test (../perllib/LavaRnd/Exit/t/1.t at line 34)
+	#     Tried to use 'LavaRnd::Exit'.
+	#     Error:  Can't load '/usr/lib/perl5/site_perl/5.8.0/i386-linux-thread-multi/auto/LavaRnd/Exit/Exit.so' for module LavaRnd::Exit: /usr/lib/perl5/site_perl/5.8.0/i386-linux-thread-multi/auto/LavaRnd/Exit/Exit.so: undefined symbol: lavarnd_errno at /usr/lib/perl5/5.8.0/i386-linux-thread-multi/XSLoader.pm line 83.
+	#  at /usr/lib/perl5/site_perl/5.8.0/i386-linux-thread-multi/LavaRnd/Exit.pm line 63
+	# Compilation failed in require at (eval 1) line 2.
+	Can't locate auto/LavaRnd/Exit/lavarnd_err.al in @INC (@INC contains: /usr/lib/perl5/5.8.0/i386-linux-thread-multi /usr/lib/perl5/5.8.0 /usr/lib/perl5/site_perl/5.8.0/i386-linux-thread-multi /usr/lib/perl5/site_perl/5.8.0 /usr/lib/perl5/site_perl /usr/lib/perl5/vendor_perl/5.8.0/i386-linux-thread-multi /usr/lib/perl5/vendor_perl/5.8.0 /usr/lib/perl5/vendor_perl .) at ../perllib/LavaRnd/Exit/t/1.t line 60
+
+    We have not been able to reproduce this problem on other systems.
+    On one system the problem went away when we re-installed LavaRnd.
+    Perhaps doing a complete:
+
+    	make clobber
+	make all
+	su	# become root
+	make install
+	exit	# become normal
+
+    will fix this problem like it did for one of our systems that
+    encountered this problem.
+
+    Strange!
