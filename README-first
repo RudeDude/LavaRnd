@@ -16,6 +16,13 @@ Test the installed LavaRnd by following the QUICK START text at the top of:
 
 	doc/README-test
 
+NOTE: Your Linux system should be running at least a 2.4.9-31 kernel.
+      The command:
+
+	    uname -r
+
+      will print your kernel version if you do not know it.
+
 =-=-=
 
 FOR MORE INFO:

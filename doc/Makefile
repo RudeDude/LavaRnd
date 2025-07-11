@@ -226,7 +226,7 @@ install.sed: Makefile ../version
 	 (echo 's:^LAVARND_USER=.*:LAVARND_USER=${LAVARND_USER}:'; \
 	  echo 's:^LAVARND_GROUP=.*:LAVARND_GROUP=${LAVARND_GROUP}:'; \
 	  echo 's:^LAVAPOOL_CHROOT=.*:LAVAPOOL_CHROOT=${LAVAPOOL_CHROOT}:'; \
-	  echo 's:0.1.1:'$$VERSION':g'; \
+	  echo 's:0.1.2:'$$VERSION':g'; \
 	) > $@
 	@echo $@ built
 
@@ -242,7 +242,7 @@ dist.sed: Makefile ../version
 	 (echo 's:^LAVARND_USER=.*:LAVARND_USER=lava:'; \
 	  echo 's:^LAVARND_GROUP=.*:LAVARND_GROUP=lava:'; \
 	  echo 's:^LAVAPOOL_CHROOT=.*:LAVAPOOL_CHROOT=/:'; \
-	  echo 's:0.1.1:'$$VERSION':g'; \
+	  echo 's:0.1.2:'$$VERSION':g'; \
 	) > $@
 	@echo $@ built
 

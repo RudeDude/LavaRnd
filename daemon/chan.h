@@ -1,8 +1,8 @@
 /*
  * chan - channel state
  *
- * @(#) $Revision: 10.1 $
- * @(#) $Id: chan.h,v 10.1 2003/08/18 06:44:37 lavarnd Exp $
+ * @(#) $Revision: 10.2 $
+ * @(#) $Id: chan.h,v 10.2 2003/11/09 22:37:03 lavarnd Exp $
  *
  * Copyright (c) 2000-2003 by Landon Curt Noll and Simon Cooper.
  * All Rights Reserved.
@@ -217,7 +217,7 @@ typedef union chan_u chan;
 /*
  * chan.c - external functions
  */
-extern u_int32_t chanindx_len;
+extern int32_t chanindx_len;
 extern const char *const state_name[];
 extern double about_now;
 extern void alloc_chanindx(void);

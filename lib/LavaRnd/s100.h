@@ -1,8 +1,8 @@
 /*
  * s100 - subtractive 100 shuffle generator
  *
- * @(#) $Revision: 10.1 $
- * @(#) $Id: s100.h,v 10.1 2003/08/18 06:44:37 lavarnd Exp $
+ * @(#) $Revision: 10.2 $
+ * @(#) $Id: s100.h,v 10.2 2003/11/09 22:37:03 lavarnd Exp $
  *
  * Copyright 1995,1999,2003 by Landon Curt Noll.  All Rights Reserved.
  *
@@ -93,7 +93,7 @@
 #  define S100_U32 (2*S100_U64)
 #  define SEED_SHA1 ((S100_U32+SHA_DIGESTLONG-1)/SHA_DIGESTLONG)
 #  define SEED_U32 (SEED_SHA1*SHA_DIGESTLONG)
-#  define S100_BUF (S100*sizeof(u_int64_t))
+#  define S100_BUF (S100*(int)sizeof(u_int64_t))
 
 
 /*

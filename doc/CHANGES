@@ -1,3 +1,10 @@
+LavaRnd version 0.1.2
+
+    09-Nov-2003
+
+    Fixed a number of compile warnings reported by users when compiled
+    on different architectures.
+
 LavaRnd version 0.1.1
 
     25-Aug-2003

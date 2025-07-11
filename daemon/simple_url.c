@@ -4,8 +4,8 @@
  * The URL content fetching is simple / naive URL in that it only deals
  * with successful 200 codes and not server redirects.
  *
- * @(#) $Revision: 10.1 $
- * @(#) $Id: simple_url.c,v 10.1 2003/08/18 06:44:37 lavarnd Exp $
+ * @(#) $Revision: 10.2 $
+ * @(#) $Id: simple_url.c,v 10.2 2003/11/09 22:37:03 lavarnd Exp $
  *
  * Copyright (c) 2000-2003 by Landon Curt Noll and Simon Cooper.
  * All Rights Reserved.
@@ -519,7 +519,7 @@ lava_raw_get_url(char *url, u_int32_t offset, int chk_ring)
  *       external function.
  */
 int
-lava_get_url(char *url, u_int32_t minlen, struct lava_retry *lava_retry)
+lava_get_url(char *url, int32_t minlen, struct lava_retry *lava_retry)
 {
     double pauseval = 0.0;	/* time to pause between retries */
     double timeoutval = 0.0;	/* timeout of an operation */

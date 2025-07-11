@@ -1,16 +1,23 @@
 How to compile LavaRnd
 ======================
 
-    for LavaRnd version 0.1.1
+    for LavaRnd version 0.1.2
 
 QUICK START:
 -----------
 
     To compile LavaRnd in the default way, try:
 
-	cd your_src_tree/LavaRnd-0.1.1
+	cd your_src_tree/LavaRnd-0.1.2
 	make clobber
 	make all
+
+    NOTE: Your Linux system should be running at least a 2.4.9-31 kernel.
+          The command:
+
+	  	uname -r
+
+	  will print your kernel version if you do not know it.
 
 =-=-=
 

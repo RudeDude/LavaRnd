@@ -1,8 +1,8 @@
 /*
  * pwc_drvr - perform Philips specific web camera operations
  *
- * @(#) $Revision: 10.3 $
- * @(#) $Id: pwc_drvr.c,v 10.3 2003/08/25 08:45:25 lavarnd Exp $
+ * @(#) $Revision: 10.4 $
+ * @(#) $Id: pwc_drvr.c,v 10.4 2003/11/09 22:37:03 lavarnd Exp $
  *
  * Copyright (c) 2000-2003 by Landon Curt Noll and Simon Cooper.
  * All Rights Reserved.
@@ -229,7 +229,7 @@ static struct lava_state lava_state[] = {
     {-1, NULL, 0.0, 0, 0, 0.0, 0.0}	/* must be last */
 };
 
-#define STATE_COUNT (sizeof(lava_state) / sizeof(lava_state[0]))
+#define STATE_COUNT ((int)sizeof(lava_state) / (int)sizeof(lava_state[0]))
 #define STARTUP_FRAMES (5)	/* try to read at least these frames */
 
 

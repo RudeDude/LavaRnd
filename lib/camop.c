@@ -1,8 +1,8 @@
 /*
  * camop - generic camera operation to specific camera operation
  *
- * @(#) $Revision: 10.1 $
- * @(#) $Id: camop.c,v 10.1 2003/08/18 06:44:37 lavarnd Exp $
+ * @(#) $Revision: 10.2 $
+ * @(#) $Id: camop.c,v 10.2 2003/11/09 22:37:03 lavarnd Exp $
  *
  * Copyright (c) 2000-2003 by Landon Curt Noll and Simon Cooper.
  * All Rights Reserved.
@@ -268,7 +268,7 @@ static struct camop cam_switch[] = {
  * TYPE_MAX - index of highest cam_switch index that is non-NULL
  * UNVALID_TYPE(x) - true ==> x is not an valid cam_switch[] index
  */
-#define TYPE_MAX ((sizeof(cam_switch) / sizeof(cam_switch[0])) - 2)
+#define TYPE_MAX (((int)sizeof(cam_switch) / (int)sizeof(cam_switch[0])) - 2)
 #define VALID_TYPE(x) ((((x) < 0) && ((x) > TYPE_MAX)) ? 1 : 0)
 
 

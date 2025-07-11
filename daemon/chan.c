@@ -1,8 +1,8 @@
 /*
  * chan - general channel processing
  *
- * @(#) $Revision: 10.1 $
- * @(#) $Id: chan.c,v 10.1 2003/08/18 06:44:37 lavarnd Exp $
+ * @(#) $Revision: 10.2 $
+ * @(#) $Id: chan.c,v 10.2 2003/11/09 22:37:03 lavarnd Exp $
  *
  * Copyright (c) 2000-2003 by Landon Curt Noll and Simon Cooper.
  * All Rights Reserved.
@@ -67,9 +67,9 @@ static u_int64_t op_cycle = 0ULL;	/* chan operation cycle */
  *
  * NOTE: The length of chanindx is chanindx_len.
  */
-static u_int32_t chanlen = 0;
+static int32_t chanlen = 0;
 static int *chanindx = NULL;
-u_int32_t chanindx_len = 0;
+int32_t chanindx_len = 0;
 
 
 /*
@@ -107,7 +107,7 @@ static double chan_cycle_timeout = 0.0;
  * static functions
  */
 static void alloc_chan(u_int32_t len);
-static void chan_indx_op(u_int32_t indx, chancycle cycle);
+static void chan_indx_op(int32_t indx, chancycle cycle);
 static int chan_select(double timelen);
 
 
@@ -440,7 +440,7 @@ find_chan(chantype type, chanstate curstate)
  *      cycle   why this operation as selected, in what part of the cycle
  */
 static void
-chan_indx_op(u_int32_t indx, chancycle cycle)
+chan_indx_op(int32_t indx, chancycle cycle)
 {
     /*
      * firewall
@@ -575,7 +575,9 @@ chan_select(double timelen)
     if (cfg_lavapool.maxclients > 0) {
 	int cnt;	/* open client channel count */
 
-	for (i = 0, cnt = 0; i < chanlen && cnt < cfg_lavapool.maxclients; ++i) {
+	for (i = 0, cnt = 0;
+	     i < chanlen && cnt < cfg_lavapool.maxclients;
+	     ++i) {
 	    if (ch[i].common.type == TYPE_CLIENT) {
 		switch ((int)ch[i].common.curstate) {
 		    /* TYPE_CLIENT channels in this state effectively open */

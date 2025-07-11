@@ -1,8 +1,8 @@
 /*
  * cfg - lavapool configuration information
  *
- * @(#) $Revision: 10.1 $
- * @(#) $Id: cfg.h,v 10.1 2003/08/18 06:44:37 lavarnd Exp $
+ * @(#) $Revision: 10.2 $
+ * @(#) $Id: cfg.h,v 10.2 2003/11/09 22:37:03 lavarnd Exp $
  *
  * Copyright (c) 2000-2003 by Landon Curt Noll and Simon Cooper.
  * All Rights Reserved.
@@ -65,7 +65,7 @@
 struct cfg_random {
     char *lavapool;	   	/* name of lavapool socket */
     int malloced_str;		/* 1 ==> malloced strings (i.e., lavapool) */
-    u_int32_t maxrequest; 	/* maximum size allowed allowed */
+    int32_t maxrequest; 	/* maximum size allowed allowed */
     int32_t exit_retries;	/* retry connection if LAVACALL_LAVA_EXIT */
     double exit_min_wait;	/* min retry timeout if LAVACALL_LAVA_EXIT */
     double exit_max_wait;	/* max retry timeout if LAVACALL_LAVA_EXIT */

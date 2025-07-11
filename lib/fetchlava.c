@@ -8,8 +8,8 @@
  * NOTE: Looking for the high level call interface?   Try random.c and
  *       random_libc.c or perhaps s100.c.
  *
- * @(#) $Revision: 10.1 $
- * @(#) $Id: fetchlava.c,v 10.1 2003/08/18 06:44:37 lavarnd Exp $
+ * @(#) $Revision: 10.2 $
+ * @(#) $Id: fetchlava.c,v 10.2 2003/11/09 22:37:03 lavarnd Exp $
  *
  * Copyright (c) 2000-2003 by Landon Curt Noll and Simon Cooper.
  * All Rights Reserved.
@@ -2080,8 +2080,8 @@ lava_preload(int lavacnt, int seed_s100)
 	 * firewall - we must have enough data to high quality seed s100
 	 */
 	if (lavabuf.start == NULL ||
-	    avail < sizeof(struct s100_seed) ||
-	    lavabuf.avail < sizeof(struct s100_seed)) {
+	    avail < (int)sizeof(struct s100_seed) ||
+	    lavabuf.avail < (int)sizeof(struct s100_seed)) {
 	    LAVA_DEBUG_E("lava_preload", LAVAERR_IMPOSSIBLE);
 	    lavarnd_errno = LAVAERR_IMPOSSIBLE;
 	    lastop_errno = LAVAERR_IMPOSSIBLE;
@@ -2315,7 +2315,7 @@ parse_lavapool(char *filename, struct cfg_random *config)
 	    new.malloced_str = 1;
 	} else if (strcmp(fld1, "maxrequest") == 0) {
 	    errno = 0;
-	    new.maxrequest = strtoul(fld2, NULL, 0);
+	    new.maxrequest = strtol(fld2, NULL, 0);
 	    if (errno == ERANGE || new.maxrequest < 1) {
 		fclose(f);
 		free_cfg_random(&new);

@@ -1,8 +1,8 @@
 /*
  * pool - lavapool operations
  *
- * @(#) $Revision: 10.1 $
- * @(#) $Id: pool.c,v 10.1 2003/08/18 06:44:37 lavarnd Exp $
+ * @(#) $Revision: 10.2 $
+ * @(#) $Id: pool.c,v 10.2 2003/11/09 22:37:03 lavarnd Exp $
  *
  * Copyright (c) 2000-2003 by Landon Curt Noll and Simon Cooper.
  * All Rights Reserved.
@@ -54,8 +54,8 @@
  * lavapool - where cryptographically strong LavaRnd data resides
  */
 static u_int8_t *pool = NULL;	/* random daemon pool */
-static u_int32_t poollen = 0;	/* lavapool data in pool, .. pool[poollen-1] */
-static u_int32_t maxlen = 0;	/* allocated length of pool */
+static int32_t poollen = 0;	/* lavapool data in pool, .. pool[poollen-1] */
+static int32_t maxlen = 0;	/* allocated length of pool */
 
 
 /*

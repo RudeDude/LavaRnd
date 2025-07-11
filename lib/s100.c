@@ -9,8 +9,8 @@
  *
  *		Please READ the WARNINGS below!!!!
  *
- * @(#) $Revision: 10.1 $
- * @(#) $Id: s100.c,v 10.1 2003/08/18 06:44:37 lavarnd Exp $
+ * @(#) $Revision: 10.2 $
+ * @(#) $Id: s100.c,v 10.2 2003/11/09 22:37:03 lavarnd Exp $
  *
  * Copyright 1995,1999,2003 by Landon Curt Noll.  All Rights Reserved.
  *
@@ -550,7 +550,7 @@ s100_load(s100shuf *s100, u_int8_t *buf, int len)
     /*
      * case: we have enough random data to directly load
      */
-    if (buf != NULL && len >= sizeof(s100->s.seed)) {
+    if (buf != NULL && len >= (int)sizeof(s100->s.seed)) {
 
 	/* no default or system stuff mixing */
 	memcpy((void *)&s100->s.seed, buf, sizeof(s100->s.seed));
@@ -574,7 +574,7 @@ s100_load(s100shuf *s100, u_int8_t *buf, int len)
 	 *	 size returned by s100_load_size.
 	 */
 	if (buf != NULL && len > 0) {
-	    if (len >= sizeof(s100->s.seed)) {
+	    if (len >= (int)sizeof(s100->s.seed)) {
 		memcpy((void *)&s100->s.seed, buf, sizeof(s100->s.seed));
 		s100->seed_len = sizeof(s100->s.seed);
 	    } else {
@@ -1009,7 +1009,7 @@ s100_quality(s100shuf *s100)
 	 * case: we are not in need of reseeding
 	 */
     	if (s100->nextspin > 0) {
-	    if (s100->seed_len >= sizeof(s100->s.seed)) {
+	    if (s100->seed_len >= (int)sizeof(s100->s.seed)) {
 		quality = LAVA_QUAL_S100HIGH;
 	    } else if (s100->seed_len > 0) {
 		quality = LAVA_QUAL_S100MED;
@@ -1021,7 +1021,7 @@ s100_quality(s100shuf *s100)
 	 * case:  we need to reseed
 	 */
 	} else {
-	    if (s100->seed_len >= sizeof(s100->s.seed)) {
+	    if (s100->seed_len >= (int)sizeof(s100->s.seed)) {
 		quality = LAVA_QUAL_S100MED;
 	    } else {
 		quality = LAVA_QUAL_S100LOW;

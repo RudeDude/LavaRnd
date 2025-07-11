@@ -6,8 +6,8 @@
  *
  * NOTE: Without the url arg, it is assumed that args will be fed on stdin.
  *
- * @(#) $Revision: 10.1 $
- * @(#) $Id: lavaurl.c,v 10.1 2003/08/18 06:44:37 lavarnd Exp $
+ * @(#) $Revision: 10.2 $
+ * @(#) $Id: lavaurl.c,v 10.2 2003/11/09 22:37:03 lavarnd Exp $
  *
  * Copyright (c) 2000-2003 by Landon Curt Noll and Simon Cooper.
  * All Rights Reserved.
@@ -98,8 +98,8 @@ char *prog = "";		/* basename of our name */
 static char *url = NULL;	/* chaotic source URL */
 static u_int32_t output_len = 0; /* maximum output size (0==>no limit) */
 static double rate = 1.0;	/* output rate factor */
-static u_int32_t minurl = 0;	/* min length of url content (0==>no min) */
-static char *revision = "$Revision: 10.1 $";
+static int32_t minurl = 0;	/* min length of url content (0==>no min) */
+static char *revision = "$Revision: 10.2 $";
 static char *version = NULL;	/* x.y part of revision */
 static int use_sysstuff = TRUE;	/* FALSE ==> dont prepend with system stuff */
 static int adj_rate = FALSE;	/* TRUE ==> adjust rate per buffer level */
@@ -490,7 +490,7 @@ parse_args(int argc, char *argv[])
     dbg(2, "main", "non-flag arg count: %d", argc);
     switch (argc) {
     case 4:
-	minurl = strtoul(argv[3], NULL, 0);
+	minurl = strtol(argv[3], NULL, 0);
 	/*FALLTHRU*/
     case 3:
 	rate = atof(argv[2]);
@@ -506,6 +506,10 @@ parse_args(int argc, char *argv[])
     }
     if (rate < 0.0625 || rate > 16.0) {
 	warn("parse_args", "rate: %.3f must be between 0.0625 and 16.0", rate);
+	return -1;
+    }
+    if (minurl < 0) {
+	warn("parse_args", "minrul: %d must be >= 0", minurl);
 	return -1;
     }
     return argc;

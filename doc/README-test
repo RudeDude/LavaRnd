@@ -1,7 +1,7 @@
 Testing an installed LavaRnd
 ============================
 
-    for LavaRnd version 0.1.1
+    for LavaRnd version 0.1.2
 
 QUICK START:
 -----------
@@ -13,7 +13,7 @@ QUICK START:
 
     To test the the installed LavaRnd system, do:
 
-	cd your_src_tree/LavaRnd-0.1.1
+	cd your_src_tree/LavaRnd-0.1.2
 	(cd tool; make test)
 
 =-=-=

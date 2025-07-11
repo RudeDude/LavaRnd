@@ -48,7 +48,7 @@
  *       loops in s100.c and lavarnd.c will fail.
  */
 #  define SHA_DIGESTSIZE		20
-#  define SHA_DIGESTLONG		(SHA_DIGESTSIZE / sizeof(u_int32_t))
+#  define SHA_DIGESTLONG		(SHA_DIGESTSIZE/(int)sizeof(u_int32_t))
 
 typedef struct {
     u_int32_t digest[SHA_DIGESTLONG];	/* message digest */
