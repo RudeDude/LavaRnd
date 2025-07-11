@@ -33,11 +33,11 @@
 
 # setup
 #
-SHELL= /bin/sh
+SHELL= /bin/bash
 AWK= awk
 BASENAME= basename
 CAT= cat
-CC= cc
+CC= gcc
 CHMOD= chmod
 CHOWN= chown
 CI= ci
@@ -87,10 +87,10 @@ DMALLOC_LIB=
 #DMALLOC_LIB= -ldmalloc
 
 #CC_WARN=
-CC_WARN= -Wall -Werror
+CC_WARN= -Wall #-Werror
 
 #CC_OPT=
-CC_OPT= -O3
+CC_OPT= -O3 #-std=gnu99
 
 #CC_DBG= ${CC_OPT}
 #CC_DBG= -g ${CC_OPT}
@@ -564,3 +564,12 @@ release_dir:
 	${CHMOD} 0444 ${RELDIR}/manifest-LavaRnd-${VERSION}
 	${RM} -rf ${RELDIR}/LavaRnd-${VERSION}
 	@echo "=-_-= ending $@ rule =-_-="
+
+test:
+	@echo "Sanity test, list cam types:"
+	LD_LIBRARY_PATH=${PWD}/lib/shared ./tool/chk_lavarnd
+	@echo ""
+	LD_LIBRARY_PATH=${PWD}/lib/shared ./tool/camget list all
+	@echo ""
+	LD_LIBRARY_PATH=${PWD}/lib/shared ./tool/poolout -v 32 1 0 > tmpfile
+
