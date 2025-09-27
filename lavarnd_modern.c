@@ -8,12 +8,15 @@
 #include <linux/videodev2.h>
 #include <unistd.h>
 #include <openssl/sha.h>  // For SHA1; install libssl-dev if needed
+#include <getopt.h>       // For command-line parsing
+#include <math.h>         // For sqrt in std dev
 
 #define DEVICE "/dev/video0"  // Change if your cam is /dev/video1, etc.
 #define WIDTH 320             // Low res for faster capture/noise focus
 #define HEIGHT 240
 #define BUFFERS 4             // Number of capture buffers
 #define OUTPUT_RANDOM_BYTES 64  // Amount of random output to generate
+#define DEFAULT_FRAMES 4      // Default number of frames to pool
 
 // Simplified LavaRnd-inspired structures/macros (from lavarnd.c)
 #define SHA_DIGESTSIZE 20
@@ -67,36 +70,116 @@ static int simple_lavarnd(u_int8_t *input, size_t inlen, u_int8_t *output, size_
     return 0;
 }
 
-// Debias function: Subtract mean per channel (assuming YUYV: Y U Y V)
-static void debias_yuyv(u_int8_t *data, size_t len) {
-    unsigned long sum_y = 0, sum_u = 0, sum_v = 0;
-    size_t count_y = 0, count_uv = 0;
+// Structure for channel stats
+typedef struct {
+    double mean;
+    double stddev;
+    u_int8_t min;
+    u_int8_t max;
+} ChannelStats;
+
+// Compute stats for a channel (Y, U, or V)
+static void compute_channel_stats(u_int8_t *data, size_t len, int mod_offset, int step, ChannelStats *stats) {
+    unsigned long sum = 0;
+    double sum_sq = 0.0;
+    size_t count = 0;
+    u_int8_t min_val = 255, max_val = 0;
     size_t i;
 
-    // Calculate means
-    for (i = 0; i < len; i += 4) {  // YUYV is 4 bytes per 2 pixels
-        if (i + 3 >= len) break;
-        sum_y += data[i] + data[i + 2];  // Y channels
-        sum_u += data[i + 1];            // U
-        sum_v += data[i + 3];            // V
-        count_y += 2;
-        count_uv++;
+    for (i = mod_offset; i < len; i += step) {
+        u_int8_t val = data[i];
+        sum += val;
+        sum_sq += (double)val * val;
+        if (val < min_val) min_val = val;
+        if (val > max_val) max_val = val;
+        count++;
     }
-    u_int8_t mean_y = sum_y / count_y;
-    u_int8_t mean_u = sum_u / count_uv;
-    u_int8_t mean_v = sum_v / count_uv;
+
+    if (count == 0) {
+        stats->mean = 0.0;
+        stats->stddev = 0.0;
+        stats->min = 0;
+        stats->max = 0;
+        return;
+    }
+
+    stats->mean = (double)sum / count;
+    stats->stddev = sqrt((sum_sq / count) - (stats->mean * stats->mean));
+    stats->min = min_val;
+    stats->max = max_val;
+}
+
+// Print stats for all channels
+static void print_stats(const char *stage, u_int8_t *data, size_t len) {
+    ChannelStats y_stats, u_stats, v_stats;
+
+    // Y: positions 0 and 2 mod 4, step 4
+    compute_channel_stats(data, len, 0, 4, &y_stats);  // Y1
+    ChannelStats y2_stats;
+    compute_channel_stats(data, len, 2, 4, &y2_stats); // Y2
+    // Average Y1 and Y2 for simplicity (since they are similar)
+    y_stats.mean = (y_stats.mean + y2_stats.mean) / 2.0;
+    y_stats.stddev = (y_stats.stddev + y2_stats.stddev) / 2.0;
+    y_stats.min = (y_stats.min < y2_stats.min) ? y_stats.min : y2_stats.min;
+    y_stats.max = (y_stats.max > y2_stats.max) ? y_stats.max : y2_stats.max;
+
+    compute_channel_stats(data, len, 1, 4, &u_stats);  // U: 1 mod 4
+    compute_channel_stats(data, len, 3, 4, &v_stats);  // V: 3 mod 4
+
+    printf("%s Stats:\n", stage);
+    printf("  Y: mean=%.2f, std=%.2f, min=%u, max=%u\n", y_stats.mean, y_stats.stddev, y_stats.min, y_stats.max);
+    printf("  U: mean=%.2f, std=%.2f, min=%u, max=%u\n", u_stats.mean, u_stats.stddev, u_stats.min, u_stats.max);
+    printf("  V: mean=%.2f, std=%.2f, min=%u, max=%u\n", v_stats.mean, v_stats.stddev, v_stats.min, v_stats.max);
+}
+
+// Debias function: Subtract mean per channel (assuming YUYV: Y U Y V)
+static void debias_yuyv(u_int8_t *data, size_t len) {
+    ChannelStats y_stats, u_stats, v_stats;
+
+    // Compute means (similar to stats)
+    compute_channel_stats(data, len, 0, 4, &y_stats);
+    ChannelStats y2_stats;
+    compute_channel_stats(data, len, 2, 4, &y2_stats);
+    double mean_y = (y_stats.mean + y2_stats.mean) / 2.0;
+
+    compute_channel_stats(data, len, 1, 4, &u_stats);
+    compute_channel_stats(data, len, 3, 4, &v_stats);
 
     // Subtract means (noise extraction)
+    size_t i;
     for (i = 0; i < len; i += 4) {
         if (i + 3 >= len) break;
-        data[i] = (data[i] > mean_y) ? data[i] - mean_y : 0;
-        data[i + 2] = (data[i + 2] > mean_y) ? data[i + 2] - mean_y : 0;
-        data[i + 1] = (data[i + 1] > mean_u) ? data[i + 1] - mean_u : 0;
-        data[i + 3] = (data[i + 3] > mean_v) ? data[i + 3] - mean_v : 0;
+        data[i] = (data[i] > mean_y) ? data[i] - (u_int8_t)mean_y : 0;
+        data[i + 2] = (data[i + 2] > mean_y) ? data[i + 2] - (u_int8_t)mean_y : 0;
+        data[i + 1] = (data[i + 1] > u_stats.mean) ? data[i + 1] - (u_int8_t)u_stats.mean : 0;
+        data[i + 3] = (data[i + 3] > v_stats.mean) ? data[i + 3] - (u_int8_t)v_stats.mean : 0;
     }
 }
 
-int main() {
+int main(int argc, char *argv[]) {
+    int debug = 0;
+    int num_frames = DEFAULT_FRAMES;
+    int opt;
+
+    // Parse command-line options
+    while ((opt = getopt(argc, argv, "df:")) != -1) {
+        switch (opt) {
+            case 'd':
+                debug = 1;
+                break;
+            case 'f':
+                num_frames = atoi(optarg);
+                if (num_frames < 1) {
+                    fprintf(stderr, "Number of frames must be at least 1\n");
+                    return 1;
+                }
+                break;
+            default:
+                fprintf(stderr, "Usage: %s [-d] [-f num_frames]\n", argv[0]);
+                return 1;
+        }
+    }
+
     int fd = open(DEVICE, O_RDWR);
     if (fd < 0) {
         perror("Failed to open device");
@@ -175,41 +258,76 @@ int main() {
     enum v4l2_buf_type type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     if (ioctl(fd, VIDIOC_STREAMON, &type) < 0) {
         perror("VIDIOC_STREAMON");
-        close(fd);
-        return 1;
-    }
-
-    // Capture one frame (loop here for more)
-    struct v4l2_buffer buf = {0};
-    buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    buf.memory = V4L2_MEMORY_MMAP;
-    if (ioctl(fd, VIDIOC_DQBUF, &buf) < 0) {
-        perror("VIDIOC_DQBUF");
         goto cleanup;
     }
 
-    // Process: Debias noise
-    u_int8_t *frame_data = (u_int8_t *)buffers[buf.index];
-    size_t frame_len = buf.bytesused;
-    debias_yuyv(frame_data, frame_len);
+    // Allocate pooled buffer
+    size_t single_frame_len = WIDTH * HEIGHT * 2;  // YUYV: 2 bytes/pixel
+    size_t pooled_len = single_frame_len * num_frames;
+    u_int8_t *pooled_data = malloc(pooled_len);
+    if (!pooled_data) {
+        fprintf(stderr, "Failed to allocate pooled buffer\n");
+        goto cleanup;
+    }
+    size_t pooled_offset = 0;
+
+    // Capture num_frames frames and pool (concatenate)
+    for (int frame = 0; frame < num_frames; ++frame) {
+        struct v4l2_buffer buf = {0};
+        buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+        buf.memory = V4L2_MEMORY_MMAP;
+        if (ioctl(fd, VIDIOC_DQBUF, &buf) < 0) {
+            perror("VIDIOC_DQBUF");
+            free(pooled_data);
+            goto cleanup;
+        }
+
+        // Copy frame data to pooled
+        size_t copy_len = buf.bytesused < single_frame_len ? buf.bytesused : single_frame_len;
+        memcpy(pooled_data + pooled_offset, buffers[buf.index], copy_len);
+        pooled_offset += copy_len;
+
+        // Requeue buffer
+        if (ioctl(fd, VIDIOC_QBUF, &buf) < 0) {
+            perror("VIDIOC_QBUF");
+            free(pooled_data);
+            goto cleanup;
+        }
+    }
+
+    // Adjust pooled_len to actual used
+    pooled_len = pooled_offset;
+
+    // Diagnostics: Pre-debias stats
+    if (debug) {
+        print_stats("Pre-debias (pooled)", pooled_data, pooled_len);
+    }
+
+    // Debias the pooled data
+    debias_yuyv(pooled_data, pooled_len);
+
+    // Diagnostics: Post-debias stats
+    if (debug) {
+        print_stats("Post-debias (pooled)", pooled_data, pooled_len);
+    }
 
     // Feed into LavaRnd-inspired RNG
     u_int8_t random_output[OUTPUT_RANDOM_BYTES];
-    if (simple_lavarnd(frame_data, frame_len, random_output, OUTPUT_RANDOM_BYTES) < 0) {
+    if (simple_lavarnd(pooled_data, pooled_len, random_output, OUTPUT_RANDOM_BYTES) < 0) {
         fprintf(stderr, "RNG processing failed\n");
+        free(pooled_data);
         goto cleanup;
     }
 
     // Output random bytes as hex
-    printf("Random output (%d bytes):\n", OUTPUT_RANDOM_BYTES);
+    printf("Random output (%d bytes from %d frames):\n", OUTPUT_RANDOM_BYTES, num_frames);
     for (int i = 0; i < OUTPUT_RANDOM_BYTES; ++i) {
         printf("%02x", random_output[i]);
         if ((i + 1) % 16 == 0) printf("\n");
     }
     printf("\n");
 
-    // Requeue buffer
-    ioctl(fd, VIDIOC_QBUF, &buf);
+    free(pooled_data);
 
 cleanup:
     // Stop streaming
