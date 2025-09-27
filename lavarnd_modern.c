@@ -3,13 +3,14 @@
 #include <string.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <sys/time.h>      // Added for struct timeval
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <linux/videodev2.h>
 #include <unistd.h>
-#include <openssl/sha.h>  // For SHA1; install libssl-dev if needed
-#include <getopt.h>       // For command-line parsing
-#include <math.h>         // For sqrt in std dev
+#include <openssl/sha.h>   // For SHA1; install libssl-dev if needed
+#include <getopt.h>        // For command-line parsing
+#include <math.h>          // For sqrt in std dev
 
 #define DEVICE "/dev/video0"  // Change if your cam is /dev/video1, etc.
 #define WIDTH 320             // Low res for faster capture/noise focus
