@@ -3,7 +3,8 @@
 
 # Compiler and flags
 CC = gcc
-CFLAGS = -Wall -Wextra -std=c99 -O2
+# Add -D_POSIX_C_SOURCE to ensure struct timeval is defined
+CFLAGS = -std=c99 -D_POSIX_C_SOURCE=200809L -Wall -o2 -Wextra
 LDFLAGS = -lcrypto -lm
 
 # Source and output
@@ -41,4 +42,3 @@ uninstall:
 
 # Phony targets
 .PHONY: all clean install uninstall
-
