@@ -24,7 +24,7 @@ $(OBJ): $(SRC)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # Link object to create executable
-$(TARGET): $(OBJ)
+$(TARGET): $(OBJ) Makefile
 	$(CC) $(OBJ) -o $(TARGET) $(LDFLAGS)
 
 # Clean up
