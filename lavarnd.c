@@ -3,7 +3,7 @@
 #include <string.h>
 #include <fcntl.h>
 #include <errno.h>
-#include <sys/time.h>      // Added for struct timeval
+#include <sys/time.h>      // For struct timeval
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <linux/videodev2.h>
@@ -12,12 +12,12 @@
 #include <getopt.h>        // For command-line parsing
 #include <math.h>          // For sqrt in std dev
 
-#define DEVICE "/dev/video0"  // Change if your cam is /dev/video1, etc.
-#define WIDTH 320             // Low res for faster capture/noise focus
+#define DEFAULT_DEVICE "/dev/video0"  // Default video device
+#define WIDTH 320                     // Low res for faster capture/noise focus
 #define HEIGHT 240
-#define BUFFERS 4             // Number of capture buffers
-#define OUTPUT_RANDOM_BYTES 64  // Amount of random output to generate
-#define DEFAULT_FRAMES 4      // Default number of frames to pool
+#define BUFFERS 4                     // Number of capture buffers
+#define OUTPUT_RANDOM_BYTES 64        // Amount of random output to generate
+#define DEFAULT_FRAMES 1              // Default number of frames to pool
 
 // Simplified LavaRnd-inspired structures/macros (from lavarnd.c)
 #define SHA_DIGESTSIZE 20
@@ -158,15 +158,16 @@ static void debias_yuyv(u_int8_t *data, size_t len) {
 }
 
 int main(int argc, char *argv[]) {
-    int debug = 0;
+    int stats = 0;  // Changed from debug to stats
     int num_frames = DEFAULT_FRAMES;
+    const char *device = DEFAULT_DEVICE;  // Default device
     int opt;
 
     // Parse command-line options
-    while ((opt = getopt(argc, argv, "df:")) != -1) {
+    while ((opt = getopt(argc, argv, "sf:d:")) != -1) {
         switch (opt) {
-            case 'd':
-                debug = 1;
+            case 's':  // Changed from 'd' to 's' for stats
+                stats = 1;
                 break;
             case 'f':
                 num_frames = atoi(optarg);
@@ -175,15 +176,22 @@ int main(int argc, char *argv[]) {
                     return 1;
                 }
                 break;
+            case 'd':
+                device = optarg;  // Set device name
+                break;
             default:
-                fprintf(stderr, "Usage: %s [-d] [-f num_frames]\n", argv[0]);
+                fprintf(stderr, "Usage: %s [-s] [-f num_frames] [-d device]\n", argv[0]);
                 return 1;
         }
     }
 
-    int fd = open(DEVICE, O_RDWR);
+    int fd = open(device, O_RDWR);
     if (fd < 0) {
-        perror("Failed to open device");
+        if (errno == EACCES) {
+            fprintf(stderr, "Permission denied: Cannot access %s. Try adding user to 'video' group or running with sudo.\n", device);
+        } else {
+            perror("Failed to open device");
+        }
         return 1;
     }
 
@@ -300,7 +308,7 @@ int main(int argc, char *argv[]) {
     pooled_len = pooled_offset;
 
     // Diagnostics: Pre-debias stats
-    if (debug) {
+    if (stats) {
         print_stats("Pre-debias (pooled)", pooled_data, pooled_len);
     }
 
@@ -308,7 +316,7 @@ int main(int argc, char *argv[]) {
     debias_yuyv(pooled_data, pooled_len);
 
     // Diagnostics: Post-debias stats
-    if (debug) {
+    if (stats) {
         print_stats("Post-debias (pooled)", pooled_data, pooled_len);
     }
 
