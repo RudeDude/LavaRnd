@@ -1,4 +1,4 @@
-# Makefile for lavarnd_modern project
+# Makefile for lavarnd project
 # Inspired by LavaRnd, updated for modern V4L2 and random number generation
 
 # Compiler and flags
@@ -8,9 +8,9 @@ CFLAGS = -std=c99 -D_POSIX_C_SOURCE=200809L -Wall -o2 -Wextra
 LDFLAGS = -lcrypto -lm
 
 # Source and output
-SRC = lavarnd_modern.c
+SRC = lavarnd.c
 OBJ = $(SRC:.c=.o)
-TARGET = lavarnd_modern
+TARGET = lavarnd
 
 # Installation path
 PREFIX = /usr/local
