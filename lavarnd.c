@@ -495,10 +495,8 @@ int main(int argc, char *argv[]) {
         close(fd);
         return 1;
     }
-    if (strcmp(output_type, "raw") != 0) {
-        fprintf(stderr, "Device: %s\n", cap.card);
-        fprintf(stderr, "Using %d frame(s) and nway=%d for %zu output bytes\n", num_frames, nway, random_len);
-    }
+    fprintf(stderr, "Device: %s\n", cap.card);
+    fprintf(stderr, "Using %d frame(s) and nway=%d for %zu output bytes\n", num_frames, nway, random_len);
 
     // Set format (YUYV raw)
     struct v4l2_format fmt = {0};
