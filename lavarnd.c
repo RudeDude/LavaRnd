@@ -19,9 +19,33 @@
 #define BUFFERS 4                     // Number of capture buffers
 #define RANDOM_LEN_DEFAULT 64         // Default random output length
 #define DEFAULT_OUTPUT_TYPE "hex"     // Default output type
+#define SHA_DIGESTSIZE 20
+#define DEFAULT_NWAY 5                // Default nway for blender if not calculated
+
+// LavaRnd macros from lavarnd.c
+#define LAVA_DIVUP(x, y) (((x) + (y) - 1) / (y))
+#define LAVA_DIVDOWN(x, y) ((x) / (y))
+#define LAVA_ROUNDUP(x, y) (LAVA_DIVUP((x), (y)) * (y))
+#define LAVA_ROUNDDOWN(x, y) (LAVA_DIVDOWN((x), (y)) * (y))
+#define LAVA_TURN_SUBDIFF(len, nway) LAVA_DIVUP((len), (nway))
+#define LAVA_BLK_TURN_SUBDIFF(len, nway) LAVA_ROUNDUP(LAVA_TURN_SUBDIFF((len), (nway)), SHA_DIGESTSIZE)
+#define LAVA_BLK_TURN_LEN(len, nway) (LAVA_BLK_TURN_SUBDIFF((len), (nway)) * (nway))
+#define LAVA_EFFECTIVE_LEN(salt_len, len, nway) (LAVA_ROUNDUP((salt_len), (nway)) + (len))
+#define LAVA_SALT_BLK_TURN_SUBDIFF(salt_len, len, nway) LAVA_BLK_TURN_SUBDIFF(LAVA_EFFECTIVE_LEN((salt_len), (len), (nway)), (nway))
+#define LAVA_SALT_BLK_TURN_LEN(salt_len, len, nway) (LAVA_SALT_BLK_TURN_SUBDIFF((salt_len), (len), (nway)) * (nway))
+#define LAVA_SALT_BLK_INDXSTEP(salt_len, len, nway) ({ \
+    size_t eff = LAVA_EFFECTIVE_LEN((salt_len), (len), (nway)); \
+    size_t mod = eff % (nway); \
+    (mod == 0 ? (nway) : mod); \
+})
+#define LAVA_SALT_BLK_TURN_SUBLEN(salt_len, len, nway, indx) ({ \
+    size_t eff = LAVA_EFFECTIVE_LEN((salt_len), (len), (nway)); \
+    size_t fl = eff / (nway); \
+    size_t step = LAVA_SALT_BLK_INDXSTEP((salt_len), (len), (nway)); \
+    ((indx) < step ? fl + 1 : fl); \
+})
 
 // Simplified LavaRnd-inspired structures/macros (from lavarnd.c)
-#define SHA_DIGESTSIZE 20
 typedef unsigned int u_int32_t;  // For compatibility with old code
 typedef unsigned char u_int8_t;
 
@@ -41,36 +65,154 @@ static void lava_xor_fold_rot(u_int32_t *buf, size_t words, u_int32_t *fold) {
     }
 }
 
-// Simplified LavaRnd process: Turn input, hash, fold (inspired by lavarnd.c)
-// Removed counter, relying on sufficient input entropy
-static int simple_lavarnd(u_int8_t *input, size_t inlen, u_int8_t *output, size_t outlen) {
-    u_int32_t hash[SHA_DIGESTSIZE / 4];
-    u_int32_t fold[5];
-    size_t i, j = 0;
+// SHA1 wrapper
+static void lava_sha1_buf(const void *buf, size_t len, void *digest) {
     SHA_CTX ctx;
+    SHA1_Init(&ctx);
+    SHA1_Update(&ctx, buf, len);
+    SHA1_Final(digest, &ctx);
+}
 
-    // Basic turn: Just copy input for simplicity (extend to n-way turn if needed)
-    if (turned_maxlen < inlen) {
-        turned = realloc(turned, inlen);
-        if (!turned) return -1;
-        turned_maxlen = inlen;
+// lava_blk_turn from lavarnd.c
+static void *lava_blk_turn(void *input, size_t len, int nway, void *turned) {
+    size_t subdiff = LAVA_BLK_TURN_SUBDIFF(len, nway);
+    size_t i;
+    u_int8_t *in = (u_int8_t *)input;
+    u_int8_t *out = (u_int8_t *)turned;
+
+    if (input == NULL || turned == NULL || nway < 1 || len == 0) {
+        return NULL;
     }
-    memcpy(turned, input, inlen);
 
-    // XOR-fold-rotate the whole buffer
-    lava_xor_fold_rot(turned, inlen / 4, fold);
-
-    // Hash and mix
-    while (j < outlen) {
-        SHA1_Init(&ctx);
-        SHA1_Update(&ctx, input, inlen);
-        SHA1_Final((u_int8_t *)hash, &ctx);
-
-        for (i = 0; i < 5 && j < outlen; ++i, j += 4) {
-            *(u_int32_t *)(output + j) = fold[i] ^ hash[i];
-        }
+    // Perform the nway turn
+    for (i = 0; i < len; ++i) {
+        out[(i % nway) * subdiff + (i / nway)] = in[i];
     }
-    return 0;
+
+    // NUL pad the sub-buffers as needed
+    for (i = len; i < LAVA_BLK_TURN_LEN(len, nway); ++i) {
+        out[i] = 0;
+    }
+
+    return turned;
+}
+
+// lava_salt_blk_turn from lavarnd.c
+static void *lava_salt_blk_turn(void *salt, size_t salt_len, void *input, size_t len, int nway, void *turned) {
+    size_t salt_round = LAVA_ROUNDUP(salt_len, nway);
+    size_t subdiff = LAVA_SALT_BLK_TURN_SUBDIFF(salt_len, len, nway);
+    size_t i;
+    u_int8_t *sal = (u_int8_t *)salt;
+    u_int8_t *in = (u_int8_t *)input;
+    u_int8_t *out = (u_int8_t *)turned;
+
+    if (salt == NULL || input == NULL || turned == NULL || nway < 1 || len == 0) {
+        return NULL;
+    }
+
+    // Perform the nway turn on salt
+    for (i = 0; i < salt_len; ++i) {
+        out[(i % nway) * subdiff + (i / nway)] = sal[i];
+    }
+
+    // NUL pad the salt as needed
+    for (i = salt_len; i < salt_round; ++i) {
+        out[(i % nway) * subdiff + (i / nway)] = 0;
+    }
+
+    // Perform the nway turn on input
+    for (i = 0; i < len; ++i) {
+        out[((i + salt_round) % nway) * subdiff + ((i + salt_round) / nway)] = in[i];
+    }
+
+    // NUL pad the sub-buffers as needed
+    for (i = salt_round + len; i < LAVA_SALT_BLK_TURN_LEN(salt_len, len, nway); ++i) {
+        out[i] = 0;
+    }
+
+    return turned;
+}
+
+// Full LavaRnd algorithm from lavarnd.c
+static size_t lavarnd(void *input_arg, size_t inlen, void *salt, size_t salt_len, int nway, void *output_arg, size_t outlen, int use_salt) {
+    u_int32_t hash[SHA_DIGESTSIZE / sizeof(u_int32_t)];  // SHA1 digest as words
+    u_int32_t fold[5];  // Fold array
+    u_int32_t *output = (u_int32_t *)output_arg;  // Output as words
+    size_t turned_len;  // Length of turned buffer
+    u_int32_t *p;  // Turned buffer pointer
+    size_t turnedwords;  // Turned length in words
+    size_t subwords;  // Sub-buffer length in words
+    size_t sublen0;  // Length of longer sub-buffers
+    size_t sublen1;  // Length of shorter sub-buffers
+    size_t indxjump;  // Jump index in words
+    size_t i, j = 0;  // Loop counters
+
+    // Firewall
+    if (input_arg == NULL || output_arg == NULL || nway < 1 || inlen == 0 || outlen == 0) {
+        return 0;  // Error
+    }
+    if (nway * SHA_DIGESTSIZE > outlen) {
+        return 0;  // Impossible
+    }
+
+    // Allocate or reallocate turned buffer
+    turned_len = LAVA_SALT_BLK_TURN_LEN(salt_len, inlen, nway);
+    if (turned_maxlen < turned_len) {
+        turned = realloc(turned, turned_len);
+        if (!turned) return 0;
+        turned_maxlen = turned_len;
+    }
+
+    // Perform turn
+    if (use_salt) {
+        p = lava_salt_blk_turn(salt, salt_len, input_arg, inlen, nway, turned);
+    } else {
+        p = lava_blk_turn(input_arg, inlen, nway, turned);
+    }
+    if (p == NULL) return 0;
+
+    // Setup for LavaRnd loop
+    turnedwords = turned_len / sizeof(u_int32_t);
+    subwords = LAVA_SALT_BLK_TURN_SUBDIFF(salt_len, inlen, nway) / sizeof(u_int32_t);
+    sublen0 = LAVA_SALT_BLK_TURN_SUBLEN(salt_len, inlen, nway, 0);
+    indxjump = LAVA_SALT_BLK_INDXSTEP(salt_len, inlen, nway) * subwords;
+    sublen1 = LAVA_SALT_BLK_TURN_SUBLEN(salt_len, inlen, nway, nway - 1);
+
+    // Initial fold of last sub-buffer
+    lava_xor_fold_rot(turned + turnedwords - subwords, subwords, fold);
+
+    // Process longer sub-buffers
+    for (i = 0; i < indxjump; i += subwords) {
+        lava_sha1_buf((void *)(turned + i), sublen0, hash);
+        output[j++] = fold[0] ^ hash[0];
+        output[j++] = fold[1] ^ hash[1];
+        output[j++] = fold[2] ^ hash[2];
+        output[j++] = fold[3] ^ hash[3];
+        output[j++] = fold[4] ^ hash[4];
+        lava_xor_fold_rot(turned + i, subwords, fold);
+    }
+
+    // Process shorter sub-buffers up to but not including last
+    for (; i < turnedwords - subwords; i += subwords) {
+        lava_sha1_buf((void *)(turned + i), sublen1, hash);
+        output[j++] = fold[0] ^ hash[0];
+        output[j++] = fold[1] ^ hash[1];
+        output[j++] = fold[2] ^ hash[2];
+        output[j++] = fold[3] ^ hash[3];
+        output[j++] = fold[4] ^ hash[4];
+        lava_xor_fold_rot(turned + i, subwords, fold);
+    }
+
+    // Process last sub-buffer
+    lava_sha1_buf((void *)(turned + i), sublen1, hash);
+    output[j++] = fold[0] ^ hash[0];
+    output[j++] = fold[1] ^ hash[1];
+    output[j++] = fold[2] ^ hash[2];
+    output[j++] = fold[3] ^ hash[3];
+    output[j++] = fold[4] ^ hash[4];
+
+    // Return output length (nway * SHA_DIGESTSIZE)
+    return j * sizeof(u_int32_t);
 }
 
 // Simple base64 encoder
@@ -150,13 +292,13 @@ static void print_stats(const char *stage, u_int8_t *data, size_t len) {
     compute_channel_stats(data, len, 1, 4, &u_stats);  // U: 1 mod 4
     compute_channel_stats(data, len, 3, 4, &v_stats);  // V: 3 mod 4
 
-    fprintf(stderr,"%s Stats:\n", stage);
-    fprintf(stderr,"  Y: mean=%.2f, std=%.2f, min=%u, max=%u\n", y_stats.mean, y_stats.stddev, y_stats.min, y_stats.max);
-    fprintf(stderr,"  U: mean=%.2f, std=%.2f, min=%u, max=%u\n", u_stats.mean, u_stats.stddev, u_stats.min, u_stats.max);
-    fprintf(stderr,"  V: mean=%.2f, std=%.2f, min=%u, max=%u\n", v_stats.mean, v_stats.stddev, v_stats.min, v_stats.max);
+    printf("%s Stats:\n", stage);
+    printf("  Y: mean=%.2f, std=%.2f, min=%u, max=%u\n", y_stats.mean, y_stats.stddev, y_stats.min, y_stats.max);
+    printf("  U: mean=%.2f, std=%.2f, min=%u, max=%u\n", u_stats.mean, u_stats.stddev, u_stats.min, u_stats.max);
+    printf("  V: mean=%.2f, std=%.2f, min=%u, max=%u\n", v_stats.mean, v_stats.stddev, v_stats.min, v_stats.max);
 }
 
-// Debias function: Subtract mean per channel (assuming YUYV: Y U Y V)
+// Improved debias function: Mean subtraction + differential XOR to remove temporal correlations
 static void debias_yuyv(u_int8_t *data, size_t len) {
     ChannelStats y_stats, u_stats, v_stats;
 
@@ -177,6 +319,15 @@ static void debias_yuyv(u_int8_t *data, size_t len) {
         data[i + 2] = (data[i + 2] > mean_y) ? data[i + 2] - (u_int8_t)mean_y : 0;
         data[i + 1] = (data[i + 1] > u_stats.mean) ? data[i + 1] - (u_int8_t)u_stats.mean : 0;
         data[i + 3] = (data[i + 3] > v_stats.mean) ? data[i + 3] - (u_int8_t)v_stats.mean : 0;
+    }
+
+    // Differential XOR to remove temporal correlations (XOR with previous value in each channel)
+    for (i = 4; i < len; i += 4) {
+        if (i + 3 >= len) break;
+        data[i] ^= data[i - 4];     // Y1 channel
+        data[i + 1] ^= data[i - 3]; // U channel
+        data[i + 2] ^= data[i - 2]; // Y2 channel
+        data[i + 3] ^= data[i - 1]; // V channel
     }
 }
 
@@ -227,7 +378,7 @@ int main(int argc, char *argv[]) {
                 printf("                 'hex': Human-readable hex dump with line breaks every 16 bytes.\n");
                 printf("                 'b64': Base64-encoded string, compact for text transmission.\n");
                 printf("  -l <len>       Length of random output in bytes (default: %d).\n", RANDOM_LEN_DEFAULT);
-                printf("                 Number of frames is calculated as ceil(len^2 / (20 * frame_size)) to ensure sufficient entropy.\n");
+                printf("                 Number of frames is calculated as ceil(len^2 / (%d * frame_size)) to ensure sufficient entropy.\n", SHA_DIGESTSIZE);
                 printf("                 Frame size is %d bytes (%dx%d YUYV, 2 bytes/pixel).\n", WIDTH * HEIGHT * 2, WIDTH, HEIGHT);
                 printf("                 Example: -l 10000 may require ~33 frames.\n");
                 printf("  -h             Display this detailed help message.\n\n");
@@ -244,9 +395,13 @@ int main(int argc, char *argv[]) {
 
     // Calculate number of frames based on output length
     size_t single_frame_len = WIDTH * HEIGHT * 2;  // YUYV: 2 bytes/pixel
-    double required_input_len = (double)random_len * random_len / 20.0;
+    double required_input_len = (double)random_len * random_len / SHA_DIGESTSIZE;
     int num_frames = (int)ceil(required_input_len / single_frame_len);
-    if (num_frames < 1) num_frames = 1;  // Ensure at least one frame
+    if (num_frames < 1) num_frames = 1;
+
+    // Calculate nway based on output length
+    int nway = (int)ceil((double)random_len / SHA_DIGESTSIZE);
+    if (nway < 1) nway = 1;
 
     int fd = open(device, O_RDWR);
     if (fd < 0) {
@@ -265,8 +420,10 @@ int main(int argc, char *argv[]) {
         close(fd);
         return 1;
     }
-    fprintf(stderr,"Device: %s\n", cap.card);
-    fprintf(stderr,"Using %d frame(s) for %zu output bytes\n", num_frames, random_len);
+    if (strcmp(output_type, "raw") != 0) {
+        printf("Device: %s\n", cap.card);
+        printf("Using %d frame(s) and nway=%d for %zu output bytes\n", num_frames, nway, random_len);
+    }
 
     // Set format (YUYV raw)
     struct v4l2_format fmt = {0};
@@ -383,39 +540,46 @@ int main(int argc, char *argv[]) {
         print_stats("Post-debias (pooled)", pooled_data, pooled_len);
     }
 
-    // Allocate random output
-    u_int8_t *random_output = malloc(random_len);
+    // Allocate random output (larger to fit nway * SHA_DIGESTSIZE)
+    size_t blender_outlen = nway * SHA_DIGESTSIZE;
+    u_int8_t *random_output = malloc(blender_outlen);
     if (!random_output) {
         fprintf(stderr, "Failed to allocate random output buffer\n");
         free(pooled_data);
         goto cleanup;
     }
 
-    // Feed into LavaRnd-inspired RNG
-    if (simple_lavarnd(pooled_data, pooled_len, random_output, random_len) < 0) {
+    // Generate salt from time
+    struct timeval tv_salt;
+    gettimeofday(&tv_salt, NULL);
+    size_t salt_len = sizeof(tv_salt);
+
+    // Feed into full LavaRnd
+    size_t generated_len = lavarnd(pooled_data, pooled_len, &tv_salt, salt_len, nway, random_output, blender_outlen, 1);
+    if (generated_len == 0) {
         fprintf(stderr, "RNG processing failed\n");
         free(pooled_data);
         free(random_output);
         goto cleanup;
     }
 
-    // Output based on type
+    // Output based on type (truncate to random_len if needed)
     if (!strcmp(output_type, "raw")) {
         // Binary output, no text
         fwrite(random_output, 1, random_len, stdout);
     } else {
         // Print header for hex and b64
-        fprintf(stderr,"Random output (%zu bytes from %d frames):\n", random_len, num_frames);
+        printf("Random output (%zu bytes from %d frames):\n", random_len, num_frames);
         if (!strcmp(output_type, "hex")) {
             for (size_t i = 0; i < random_len; ++i) {
-                fprintf(stderr,"%02x", random_output[i]);
+                printf("%02x", random_output[i]);
                 if ((i + 1) % 16 == 0) printf("\n");
             }
-            fprintf(stderr,"\n");
+            printf("\n");
         } else if (!strcmp(output_type, "b64")) {
             char *b64 = base64_encode(random_output, random_len);
             if (b64) {
-                fprintf(stderr,"%s\n", b64);
+                printf("%s\n", b64);
                 free(b64);
             } else {
                 fprintf(stderr, "Base64 encoding failed\n");
