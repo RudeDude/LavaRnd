@@ -6,6 +6,7 @@
 #include <sys/time.h>      // For struct timeval
 #include <sys/ioctl.h>
 #include <sys/mman.h>
+#include <sys/select.h>    // For select
 #include <linux/videodev2.h>
 #include <unistd.h>
 #include <openssl/sha.h>   // For SHA1; install libssl-dev if needed
@@ -16,11 +17,12 @@
 #define DEFAULT_DEVICE "/dev/video0"  // Default video device
 #define WIDTH 640                     // Low res for faster capture/noise focus
 #define HEIGHT 480
-#define BUFFERS 8                     // Number of capture buffers
+#define BUFFERS 8                     // Increased for better concurrency
 #define RANDOM_LEN_DEFAULT 64         // Default random output length
 #define DEFAULT_OUTPUT_TYPE "hex"     // Default output type
 #define SHA_DIGESTSIZE 20
 #define DEFAULT_NWAY 5                // Default nway for blender if not calculated
+#define SELECT_TIMEOUT_SEC 2.0        // Timeout for select in seconds
 
 // LavaRnd macros from lavarnd.c
 #define LAVA_DIVUP(x, y) (((x) + (y) - 1) / (y))
@@ -401,7 +403,7 @@ static void debias_yuyv(u_int8_t *data, size_t len) {
 
 int main(int argc, char *argv[]) {
     int stats = 0;
-    int frame_stats = 0;  // New flag for per-frame stats
+    int frame_stats = 0;
     const char *device = DEFAULT_DEVICE;
     const char *output_type = DEFAULT_OUTPUT_TYPE;
     size_t random_len = RANDOM_LEN_DEFAULT;
@@ -495,8 +497,10 @@ int main(int argc, char *argv[]) {
         close(fd);
         return 1;
     }
-    fprintf(stderr, "Device: %s\n", cap.card);
-    fprintf(stderr, "Using %d frame(s) and nway=%d for %zu output bytes\n", num_frames, nway, random_len);
+    if (strcmp(output_type, "raw") != 0) {
+        fprintf(stderr, "Device: %s\n", cap.card);
+        fprintf(stderr, "Using %d frame(s) and nway=%d for %zu output bytes\n", num_frames, nway, random_len);
+    }
 
     // Set format (YUYV raw)
     struct v4l2_format fmt = {0};
@@ -521,6 +525,10 @@ int main(int argc, char *argv[]) {
         close(fd);
         return 1;
     }
+    if (req.count < BUFFERS) {
+        fprintf(stderr, "Warning: Requested %d buffers, got %d\n", BUFFERS, req.count);
+        BUFFERS = req.count;  // Adjust to available buffers
+    }
 
     // Map buffers
     void *buffers[BUFFERS];
@@ -544,7 +552,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    // Enqueue buffers
+    // Enqueue all buffers
     for (int i = 0; i < BUFFERS; ++i) {
         struct v4l2_buffer buf = {0};
         buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
@@ -573,9 +581,30 @@ int main(int argc, char *argv[]) {
     }
     size_t pooled_offset = 0;
 
-    fprintf(stderr, "Starting to capture %zu bytes from %d frames...\n", random_len, num_frames);
-    // Capture num_frames frames and pool (concatenate)
-    for (int frame = 0; frame < num_frames; ++frame) {
+    // Capture num_frames frames using select for efficiency
+    int frames_captured = 0;
+    fd_set fds;
+    struct timeval timeout;
+
+    while (frames_captured < num_frames) {
+        FD_ZERO(&fds);
+        FD_SET(fd, &fds);
+        timeout.tv_sec = (int)SELECT_TIMEOUT_SEC;
+        timeout.tv_usec = (int)((SELECT_TIMEOUT_SEC - (int)SELECT_TIMEOUT_SEC) * 1000000);
+
+        int ret = select(fd + 1, &fds, NULL, NULL, &timeout);
+        if (ret < 0) {
+            if (errno == EINTR) continue;  // Retry on signal interrupt
+            fprintf(stderr, "select: %s\n", strerror(errno));
+            free(pooled_data);
+            goto cleanup;
+        } else if (ret == 0) {
+            fprintf(stderr, "Error: select timeout while capturing frame %d\n", frames_captured);
+            free(pooled_data);
+            goto cleanup;
+        }
+
+        // Dequeue a buffer
         struct v4l2_buffer buf = {0};
         buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
         buf.memory = V4L2_MEMORY_MMAP;
@@ -585,7 +614,7 @@ int main(int argc, char *argv[]) {
             goto cleanup;
         }
 
-        // Copy frame data to pooled
+        // Process frame
         size_t copy_len = buf.bytesused < single_frame_len ? buf.bytesused : single_frame_len;
         if (pooled_offset + copy_len > pooled_len) {
             fprintf(stderr, "Error: Pooled buffer overflow (offset=%zu, copy_len=%zu, max=%zu)\n",
@@ -598,12 +627,13 @@ int main(int argc, char *argv[]) {
         // Print per-frame stats if -z is enabled
         if (frame_stats) {
             char stage[32];
-            snprintf(stage, sizeof(stage), "Frame %d", frame);
+            snprintf(stage, sizeof(stage), "Frame %d", frames_captured);
             print_stats(stage, buffers[buf.index], copy_len);
         }
 
         memcpy(pooled_data + pooled_offset, buffers[buf.index], copy_len);
         pooled_offset += copy_len;
+        frames_captured++;
 
         // Requeue buffer
         if (ioctl(fd, VIDIOC_QBUF, &buf) < 0) {
@@ -658,7 +688,7 @@ int main(int argc, char *argv[]) {
         if (!strcmp(output_type, "hex")) {
             for (size_t i = 0; i < random_len; ++i) {
                 printf("%02x", random_output[i]);
-                if ((i + 1) % 32 == 0) printf("\n");
+                if ((i + 1) % 16 == 0) printf("\n");
             }
             printf("\n");
         } else if (!strcmp(output_type, "b64")) {
@@ -681,7 +711,9 @@ cleanup:
 
     // Unmap buffers
     for (int i = 0; i < BUFFERS; ++i) {
-        munmap(buffers[i], lengths[i]);
+        if (buffers[i] != MAP_FAILED) {
+            munmap(buffers[i], lengths[i]);
+        }
     }
 
     close(fd);
