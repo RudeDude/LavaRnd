@@ -11,7 +11,7 @@
 #include <openssl/sha.h>   // For SHA1; install libssl-dev if needed
 #include <getopt.h>        // For command-line parsing
 #include <math.h>          // For sqrt in std dev
-#include <stdint.h>        // For uint32_t in base64
+#include <stdint.h>        // For uint32_t, uint64_t
 
 #define DEFAULT_DEVICE "/dev/video0"  // Default video device
 #define WIDTH 320                     // Low res for faster capture/noise focus
@@ -43,10 +43,12 @@ static void lava_xor_fold_rot(u_int32_t *buf, size_t words, u_int32_t *fold) {
 }
 
 // Simplified LavaRnd process: Turn input, hash, fold (inspired by lavarnd.c)
+// Added counter to avoid repetition
 static int simple_lavarnd(u_int8_t *input, size_t inlen, u_int8_t *output, size_t outlen) {
     u_int32_t hash[SHA_DIGESTSIZE / 4];
     u_int32_t fold[5];
     size_t i, j = 0;
+    uint64_t counter = 0;  // Counter to salt each hash iteration
     SHA_CTX ctx;
 
     // Basic turn: Just copy input for simplicity (extend to n-way turn if needed)
@@ -60,10 +62,12 @@ static int simple_lavarnd(u_int8_t *input, size_t inlen, u_int8_t *output, size_
     // XOR-fold-rotate the whole buffer
     lava_xor_fold_rot(turned, inlen / 4, fold);
 
-    // Hash and mix
+    // Hash and mix, with counter to vary each chunk
     while (j < outlen) {
         SHA1_Init(&ctx);
         SHA1_Update(&ctx, input, inlen);
+        SHA1_Update(&ctx, &counter, sizeof(counter));  // Salt with counter
+        counter++;
         SHA1_Final((u_int8_t *)hash, &ctx);
 
         for (i = 0; i < 5 && j < outlen; ++i, j += 4) {
