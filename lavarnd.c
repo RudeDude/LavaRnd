@@ -76,6 +76,7 @@ static void lava_sha1_buf(const void *buf, size_t len, void *digest) {
 // lava_blk_turn from lavarnd.c
 static void *lava_blk_turn(void *input, size_t len, int nway, void *turned) {
     size_t subdiff = LAVA_BLK_TURN_SUBDIFF(len, nway);
+    size_t turned_len = LAVA_BLK_TURN_LEN(len, nway);
     size_t i;
     u_int8_t *in = (u_int8_t *)input;
     u_int8_t *out = (u_int8_t *)turned;
@@ -86,11 +87,20 @@ static void *lava_blk_turn(void *input, size_t len, int nway, void *turned) {
 
     // Perform the nway turn
     for (i = 0; i < len; ++i) {
-        out[(i % nway) * subdiff + (i / nway)] = in[i];
+        size_t idx = (i % nway) * subdiff + (i / nway);
+        if (idx >= turned_len) {
+            fprintf(stderr, "Error: lava_blk_turn index %zu out of bounds (max %zu)\n", idx, turned_len);
+            return NULL;
+        }
+        out[idx] = in[i];
     }
 
     // NUL pad the sub-buffers as needed
-    for (i = len; i < LAVA_BLK_TURN_LEN(len, nway); ++i) {
+    for (i = len; i < turned_len; ++i) {
+        if (i >= turned_len) {
+            fprintf(stderr, "Error: lava_blk_turn padding index %zu out of bounds (max %zu)\n", i, turned_len);
+            return NULL;
+        }
         out[i] = 0;
     }
 
@@ -101,6 +111,7 @@ static void *lava_blk_turn(void *input, size_t len, int nway, void *turned) {
 static void *lava_salt_blk_turn(void *salt, size_t salt_len, void *input, size_t len, int nway, void *turned) {
     size_t salt_round = LAVA_ROUNDUP(salt_len, nway);
     size_t subdiff = LAVA_SALT_BLK_TURN_SUBDIFF(salt_len, len, nway);
+    size_t turned_len = LAVA_SALT_BLK_TURN_LEN(salt_len, len, nway);
     size_t i;
     u_int8_t *sal = (u_int8_t *)salt;
     u_int8_t *in = (u_int8_t *)input;
@@ -112,21 +123,40 @@ static void *lava_salt_blk_turn(void *salt, size_t salt_len, void *input, size_t
 
     // Perform the nway turn on salt
     for (i = 0; i < salt_len; ++i) {
-        out[(i % nway) * subdiff + (i / nway)] = sal[i];
+        size_t idx = (i % nway) * subdiff + (i / nway);
+        if (idx >= turned_len) {
+            fprintf(stderr, "Error: lava_salt_blk_turn salt index %zu out of bounds (max %zu)\n", idx, turned_len);
+            return NULL;
+        }
+        out[idx] = sal[i];
     }
 
     // NUL pad the salt as needed
     for (i = salt_len; i < salt_round; ++i) {
-        out[(i % nway) * subdiff + (i / nway)] = 0;
+        size_t idx = (i % nway) * subdiff + (i / nway);
+        if (idx >= turned_len) {
+            fprintf(stderr, "Error: lava_salt_blk_turn salt padding index %zu out of bounds (max %zu)\n", idx, turned_len);
+            return NULL;
+        }
+        out[idx] = 0;
     }
 
     // Perform the nway turn on input
     for (i = 0; i < len; ++i) {
-        out[((i + salt_round) % nway) * subdiff + ((i + salt_round) / nway)] = in[i];
+        size_t idx = ((i + salt_round) % nway) * subdiff + ((i + salt_round) / nway);
+        if (idx >= turned_len) {
+            fprintf(stderr, "Error: lava_salt_blk_turn input index %zu out of bounds (max %zu)\n", idx, turned_len);
+            return NULL;
+        }
+        out[idx] = in[i];
     }
 
     // NUL pad the sub-buffers as needed
-    for (i = salt_round + len; i < LAVA_SALT_BLK_TURN_LEN(salt_len, len, nway); ++i) {
+    for (i = salt_round + len; i < turned_len; ++i) {
+        if (i >= turned_len) {
+            fprintf(stderr, "Error: lava_salt_blk_turn final padding index %zu out of bounds (max %zu)\n", i, turned_len);
+            return NULL;
+        }
         out[i] = 0;
     }
 
@@ -134,7 +164,7 @@ static void *lava_salt_blk_turn(void *salt, size_t salt_len, void *input, size_t
 }
 
 // Full LavaRnd algorithm from lavarnd.c
-static size_t lavarnd(void *input_arg, size_t inlen, void *salt, size_t salt_len, int nway, void *output_arg, size_t outlen) {
+static size_t lavarnd(void *input_arg, size_t inlen, void *salt, size_t salt_len, int nway, void *output_arg, size_t outlen, int stats) {
     u_int32_t hash[SHA_DIGESTSIZE / sizeof(u_int32_t)];  // SHA1 digest as words
     u_int32_t fold[5];  // Fold array
     u_int32_t *output = (u_int32_t *)output_arg;  // Output as words
@@ -149,40 +179,72 @@ static size_t lavarnd(void *input_arg, size_t inlen, void *salt, size_t salt_len
 
     // Firewall
     if (input_arg == NULL || output_arg == NULL || nway < 1 || inlen == 0 || outlen == 0) {
+        fprintf(stderr, "Error: Invalid arguments to lavarnd\n");
         return 0;  // Error
     }
     if (nway * SHA_DIGESTSIZE > outlen) {
+        fprintf(stderr, "Error: nway * SHA_DIGESTSIZE (%d * %d = %d) exceeds outlen (%zu)\n", 
+                nway, SHA_DIGESTSIZE, nway * SHA_DIGESTSIZE, outlen);
         return 0;  // Impossible
     }
 
     // Allocate or reallocate turned buffer
-    turned_len = LAVA_SALT_BLK_TURN_LEN(salt_len, inlen, nway);
+    turned_len = salt_len > 0 ? LAVA_SALT_BLK_TURN_LEN(salt_len, inlen, nway) : LAVA_BLK_TURN_LEN(inlen, nway);
+    if (stats) {
+        fprintf(stderr, "Debug: Allocating turned buffer of %zu bytes (nway=%d, inlen=%zu, salt_len=%zu)\n", 
+                turned_len, nway, inlen, salt_len);
+    }
     if (turned_maxlen < turned_len) {
         turned = realloc(turned, turned_len);
-        if (!turned) return 0;
+        if (!turned) {
+            fprintf(stderr, "Error: Failed to allocate turned buffer\n");
+            return 0;
+        }
         turned_maxlen = turned_len;
     }
 
     // Perform turn
     if (salt_len > 0) {
+        if (stats) {
+            fprintf(stderr, "Debug: Using lava_salt_blk_turn\n");
+        }
         p = lava_salt_blk_turn(salt, salt_len, input_arg, inlen, nway, turned);
     } else {
+        if (stats) {
+            fprintf(stderr, "Debug: Using lava_blk_turn\n");
+        }
         p = lava_blk_turn(input_arg, inlen, nway, turned);
     }
-    if (p == NULL) return 0;
+    if (p == NULL) {
+        fprintf(stderr, "Error: Turn operation failed\n");
+        return 0;
+    }
 
     // Setup for LavaRnd loop
     turnedwords = turned_len / sizeof(u_int32_t);
-    subwords = LAVA_SALT_BLK_TURN_SUBDIFF(salt_len, inlen, nway) / sizeof(u_int32_t);
-    sublen0 = LAVA_SALT_BLK_TURN_SUBLEN(salt_len, inlen, nway, 0);
-    indxjump = LAVA_SALT_BLK_INDXSTEP(salt_len, inlen, nway) * subwords;
-    sublen1 = LAVA_SALT_BLK_TURN_SUBLEN(salt_len, inlen, nway, nway - 1);
+    subwords = (salt_len > 0 ? LAVA_SALT_BLK_TURN_SUBDIFF(salt_len, inlen, nway) : LAVA_BLK_TURN_SUBDIFF(inlen, nway)) / sizeof(u_int32_t);
+    sublen0 = salt_len > 0 ? LAVA_SALT_BLK_TURN_SUBLEN(salt_len, inlen, nway, 0) : LAVA_BLK_TURN_SUBDIFF(inlen, nway);
+    indxjump = (salt_len > 0 ? LAVA_SALT_BLK_INDXSTEP(salt_len, inlen, nway) : nway) * subwords;
+    sublen1 = salt_len > 0 ? LAVA_SALT_BLK_TURN_SUBLEN(salt_len, inlen, nway, nway - 1) : LAVA_BLK_TURN_SUBDIFF(inlen, nway);
+
+    if (stats) {
+        fprintf(stderr, "Debug: turned_len=%zu, turnedwords=%zu, subwords=%zu, sublen0=%zu, sublen1=%zu, indxjump=%zu\n",
+                turned_len, turnedwords, subwords, sublen0, sublen1, indxjump);
+    }
 
     // Initial fold of last sub-buffer
+    if (turnedwords < subwords) {
+        fprintf(stderr, "Error: turnedwords (%zu) less than subwords (%zu)\n", turnedwords, subwords);
+        return 0;
+    }
     lava_xor_fold_rot(turned + turnedwords - subwords, subwords, fold);
 
     // Process longer sub-buffers
-    for (i = 0; i < indxjump; i += subwords) {
+    for (i = 0; i < indxjump && i < turnedwords && j < outlen / sizeof(u_int32_t); i += subwords) {
+        if (i + subwords > turnedwords) {
+            fprintf(stderr, "Error: Index %zu + subwords %zu exceeds turnedwords %zu\n", i, subwords, turnedwords);
+            return 0;
+        }
         lava_sha1_buf((void *)(turned + i), sublen0, hash);
         output[j++] = fold[0] ^ hash[0];
         output[j++] = fold[1] ^ hash[1];
@@ -193,7 +255,11 @@ static size_t lavarnd(void *input_arg, size_t inlen, void *salt, size_t salt_len
     }
 
     // Process shorter sub-buffers up to but not including last
-    for (; i < turnedwords - subwords; i += subwords) {
+    for (; i < turnedwords - subwords && j < outlen / sizeof(u_int32_t); i += subwords) {
+        if (i + subwords > turnedwords) {
+            fprintf(stderr, "Error: Index %zu + subwords %zu exceeds turnedwords %zu\n", i, subwords, turnedwords);
+            return 0;
+        }
         lava_sha1_buf((void *)(turned + i), sublen1, hash);
         output[j++] = fold[0] ^ hash[0];
         output[j++] = fold[1] ^ hash[1];
@@ -204,14 +270,16 @@ static size_t lavarnd(void *input_arg, size_t inlen, void *salt, size_t salt_len
     }
 
     // Process last sub-buffer
-    lava_sha1_buf((void *)(turned + i), sublen1, hash);
-    output[j++] = fold[0] ^ hash[0];
-    output[j++] = fold[1] ^ hash[1];
-    output[j++] = fold[2] ^ hash[2];
-    output[j++] = fold[3] ^ hash[3];
-    output[j++] = fold[4] ^ hash[4];
+    if (i < turnedwords && j < outlen / sizeof(u_int32_t)) {
+        lava_sha1_buf((void *)(turned + i), sublen1, hash);
+        output[j++] = fold[0] ^ hash[0];
+        output[j++] = fold[1] ^ hash[1];
+        output[j++] = fold[2] ^ hash[2];
+        output[j++] = fold[3] ^ hash[3];
+        output[j++] = fold[4] ^ hash[4];
+    }
 
-    // Return output length (nway * SHA_DIGESTSIZE)
+    // Return output length in bytes
     return j * sizeof(u_int32_t);
 }
 
@@ -514,6 +582,12 @@ int main(int argc, char *argv[]) {
 
         // Copy frame data to pooled
         size_t copy_len = buf.bytesused < single_frame_len ? buf.bytesused : single_frame_len;
+        if (pooled_offset + copy_len > pooled_len) {
+            fprintf(stderr, "Error: Pooled buffer overflow (offset=%zu, copy_len=%zu, max=%zu)\n",
+                    pooled_offset, copy_len, pooled_len);
+            free(pooled_data);
+            goto cleanup;
+        }
         memcpy(pooled_data + pooled_offset, buffers[buf.index], copy_len);
         pooled_offset += copy_len;
 
@@ -550,13 +624,8 @@ int main(int argc, char *argv[]) {
         goto cleanup;
     }
 
-    // Generate salt from time
-    struct timeval tv_salt;
-    gettimeofday(&tv_salt, NULL);
-    size_t salt_len = sizeof(tv_salt);
-
-    // Feed into full LavaRnd
-    size_t generated_len = lavarnd(pooled_data, pooled_len, &tv_salt, salt_len, nway, random_output, blender_outlen);
+    // Feed into full LavaRnd (no salt for simplicity)
+    size_t generated_len = lavarnd(pooled_data, pooled_len, NULL, 0, nway, random_output, blender_outlen, stats);
     if (generated_len == 0) {
         fprintf(stderr, "RNG processing failed\n");
         free(pooled_data);
