@@ -14,9 +14,9 @@
 #include <stdint.h>        // For uint32_t
 
 #define DEFAULT_DEVICE "/dev/video0"  // Default video device
-#define WIDTH 320                     // Low res for faster capture/noise focus
-#define HEIGHT 240
-#define BUFFERS 4                     // Number of capture buffers
+#define WIDTH 640                     // Low res for faster capture/noise focus
+#define HEIGHT 480
+#define BUFFERS 8                     // Number of capture buffers
 #define RANDOM_LEN_DEFAULT 64         // Default random output length
 #define DEFAULT_OUTPUT_TYPE "hex"     // Default output type
 #define SHA_DIGESTSIZE 20
@@ -573,6 +573,7 @@ int main(int argc, char *argv[]) {
     }
     size_t pooled_offset = 0;
 
+    fprintf(stderr, "Starting to capture %zu bytes from %d frames...\n", random_len, num_frames);
     // Capture num_frames frames and pool (concatenate)
     for (int frame = 0; frame < num_frames; ++frame) {
         struct v4l2_buffer buf = {0};
@@ -593,6 +594,7 @@ int main(int argc, char *argv[]) {
             goto cleanup;
         }
 
+        fprintf(stderr,".");
         // Print per-frame stats if -z is enabled
         if (frame_stats) {
             char stage[32];
@@ -610,6 +612,7 @@ int main(int argc, char *argv[]) {
             goto cleanup;
         }
     }
+    fprintf(stderr,"\n");
 
     // Adjust pooled_len to actual used
     pooled_len = pooled_offset;
@@ -655,7 +658,7 @@ int main(int argc, char *argv[]) {
         if (!strcmp(output_type, "hex")) {
             for (size_t i = 0; i < random_len; ++i) {
                 printf("%02x", random_output[i]);
-                if ((i + 1) % 16 == 0) printf("\n");
+                if ((i + 1) % 32 == 0) printf("\n");
             }
             printf("\n");
         } else if (!strcmp(output_type, "b64")) {
