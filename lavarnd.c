@@ -404,6 +404,7 @@ static void debias_yuyv(u_int8_t *data, size_t len) {
 int main(int argc, char *argv[]) {
     int stats = 0;
     int frame_stats = 0;
+    int num_buffers = BUFFERS;
     const char *device = DEFAULT_DEVICE;
     const char *output_type = DEFAULT_OUTPUT_TYPE;
     size_t random_len = RANDOM_LEN_DEFAULT;
@@ -474,7 +475,7 @@ int main(int argc, char *argv[]) {
     size_t single_frame_len = WIDTH * HEIGHT * 2;  // YUYV: 2 bytes/pixel
     double required_input_len = (double)random_len * random_len / SHA_DIGESTSIZE;
     int num_frames = (int)ceil(required_input_len / single_frame_len);
-    if (num_frames < 1) num_frames = 1;
+    if (num_frames < 2) num_frames = 2;
 
     // Calculate nway based on output length
     int nway = (int)ceil((double)random_len / SHA_DIGESTSIZE);
@@ -517,7 +518,7 @@ int main(int argc, char *argv[]) {
 
     // Request buffers
     struct v4l2_requestbuffers req = {0};
-    req.count = BUFFERS;
+    req.count = num_buffers;
     req.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     req.memory = V4L2_MEMORY_MMAP;
     if (ioctl(fd, VIDIOC_REQBUFS, &req) < 0) {
@@ -525,15 +526,15 @@ int main(int argc, char *argv[]) {
         close(fd);
         return 1;
     }
-    if (req.count < BUFFERS) {
-        fprintf(stderr, "Warning: Requested %d buffers, got %d\n", BUFFERS, req.count);
-        BUFFERS = req.count;  // Adjust to available buffers
+    if (req.count < num_buffers) {
+        fprintf(stderr, "Warning: Requested %d buffers, got %d\n", num_buffers, req.count);
+        num_buffers = req.count;  // Adjust to available buffers
     }
 
     // Map buffers
-    void *buffers[BUFFERS];
-    size_t lengths[BUFFERS];
-    for (int i = 0; i < BUFFERS; ++i) {
+    void *buffers[num_buffers];
+    size_t lengths[num_buffers];
+    for (int i = 0; i < num_buffers; ++i) {
         struct v4l2_buffer buf = {0};
         buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
         buf.memory = V4L2_MEMORY_MMAP;
@@ -553,7 +554,7 @@ int main(int argc, char *argv[]) {
     }
 
     // Enqueue all buffers
-    for (int i = 0; i < BUFFERS; ++i) {
+    for (int i = 0; i < num_buffers; ++i) {
         struct v4l2_buffer buf = {0};
         buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
         buf.memory = V4L2_MEMORY_MMAP;
@@ -586,6 +587,7 @@ int main(int argc, char *argv[]) {
     fd_set fds;
     struct timeval timeout;
 
+    fprintf(stderr, "Fetching %d frames.\n", num_frames);
     while (frames_captured < num_frames) {
         FD_ZERO(&fds);
         FD_SET(fd, &fds);
@@ -688,7 +690,7 @@ int main(int argc, char *argv[]) {
         if (!strcmp(output_type, "hex")) {
             for (size_t i = 0; i < random_len; ++i) {
                 printf("%02x", random_output[i]);
-                if ((i + 1) % 16 == 0) printf("\n");
+                if ((i + 1) % 32 == 0) printf("\n");
             }
             printf("\n");
         } else if (!strcmp(output_type, "b64")) {
@@ -710,7 +712,7 @@ cleanup:
     ioctl(fd, VIDIOC_STREAMOFF, &type);
 
     // Unmap buffers
-    for (int i = 0; i < BUFFERS; ++i) {
+    for (int i = 0; i < num_buffers; ++i) {
         if (buffers[i] != MAP_FAILED) {
             munmap(buffers[i], lengths[i]);
         }
