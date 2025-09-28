@@ -24,7 +24,7 @@
 #define DEFAULT_OUTPUT_TYPE "hex"     // Default output type
 #define SHA_DIGESTSIZE 20
 #define DEFAULT_NWAY 5                // Default nway for blender if not calculated
-#define SELECT_TIMEOUT_SEC 2.0        // Timeout for select in seconds
+#define SELECT_TIMEOUT_SEC 0.5        // Timeout for select in seconds
 
 // LavaRnd macros from lavarnd.c
 #define LAVA_DIVUP(x, y) (((x) + (y) - 1) / (y))
@@ -606,7 +606,8 @@ int main(int argc, char *argv[]) {
     // Continuous mode loop or single run
     do {
         // Allocate pooled buffer (one frame for continuous)
-        size_t pooled_len = continuous ? single_frame_len : single_frame_len * num_frames;
+        size_t batch_size = continuous ? 1 : (num_frames > MAX_BUFFERS ? MAX_BUFFERS : num_frames);
+        size_t pooled_len = single_frame_len * batch_size;
         u_int8_t *pooled_data = malloc(pooled_len);
         if (!pooled_data) {
             fprintf(stderr, "Failed to allocate pooled buffer\n");
@@ -620,7 +621,8 @@ int main(int argc, char *argv[]) {
         fd_set fds;
         struct timeval timeout;
 
-        while (frames_captured < frames_to_capture && running) {
+        fprintf(stderr,"Getting %d frames w/ batch size %ld", frames_to_capture, batch_size);
+        while (frames_captured < batch_size && running) {
             FD_ZERO(&fds);
             FD_SET(fd, &fds);
             timeout.tv_sec = (int)SELECT_TIMEOUT_SEC;
@@ -661,7 +663,8 @@ int main(int argc, char *argv[]) {
             // Print per-frame stats if -z is enabled
             if (frame_stats) {
                 char stage[32];
-                snprintf(stage, sizeof(stage), "Frame %d", frames_captured);
+                int x = num_frames - batch_size + frames_captured;
+                snprintf(stage, sizeof(stage), "Frame %d", continuous ? frames_captured : x);
                 print_stats(stage, buffers[buf.index], copy_len);
             }
 
