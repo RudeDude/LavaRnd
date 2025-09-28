@@ -11,13 +11,15 @@
 #include <openssl/sha.h>   // For SHA1; install libssl-dev if needed
 #include <getopt.h>        // For command-line parsing
 #include <math.h>          // For sqrt in std dev
+#include <stdint.h>        // For uint32_t in base64
 
 #define DEFAULT_DEVICE "/dev/video0"  // Default video device
 #define WIDTH 320                     // Low res for faster capture/noise focus
 #define HEIGHT 240
 #define BUFFERS 4                     // Number of capture buffers
-#define OUTPUT_RANDOM_BYTES 64        // Amount of random output to generate
+#define RANDOM_LEN_DEFAULT 64         // Default random output length
 #define DEFAULT_FRAMES 1              // Default number of frames to pool
+#define DEFAULT_OUTPUT_TYPE "hex"     // Default output type
 
 // Simplified LavaRnd-inspired structures/macros (from lavarnd.c)
 #define SHA_DIGESTSIZE 20
@@ -69,6 +71,27 @@ static int simple_lavarnd(u_int8_t *input, size_t inlen, u_int8_t *output, size_
         }
     }
     return 0;
+}
+
+// Simple base64 encoder
+static char *base64_encode(const u_int8_t *data, size_t len) {
+    static const char *b64chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    char *out = malloc(((len + 2) / 3) * 4 + 1);
+    if (!out) return NULL;
+    size_t i, j = 0;
+    for (i = 0; i < len; ) {
+        uint32_t val = 0;
+        int pad = 0;
+        val = data[i++] << 16;
+        if (i < len) { val |= data[i++] << 8; } else pad++;
+        if (i < len) { val |= data[i++]; } else pad++;
+        out[j++] = b64chars[(val >> 18) & 63];
+        out[j++] = b64chars[(val >> 12) & 63];
+        out[j++] = (pad >= 2) ? '=' : b64chars[(val >> 6) & 63];
+        out[j++] = (pad >= 1) ? '=' : b64chars[val & 63];
+    }
+    out[j] = '\0';
+    return out;
 }
 
 // Structure for channel stats
@@ -158,15 +181,17 @@ static void debias_yuyv(u_int8_t *data, size_t len) {
 }
 
 int main(int argc, char *argv[]) {
-    int stats = 0;  // Changed from debug to stats
+    int stats = 0;
     int num_frames = DEFAULT_FRAMES;
-    const char *device = DEFAULT_DEVICE;  // Default device
+    const char *device = DEFAULT_DEVICE;
+    const char *output_type = DEFAULT_OUTPUT_TYPE;
+    size_t random_len = RANDOM_LEN_DEFAULT;
     int opt;
 
     // Parse command-line options
-    while ((opt = getopt(argc, argv, "sf:d:")) != -1) {
+    while ((opt = getopt(argc, argv, "sf:d:t:l:")) != -1) {
         switch (opt) {
-            case 's':  // Changed from 'd' to 's' for stats
+            case 's':
                 stats = 1;
                 break;
             case 'f':
@@ -177,10 +202,26 @@ int main(int argc, char *argv[]) {
                 }
                 break;
             case 'd':
-                device = optarg;  // Set device name
+                device = optarg;
+                break;
+            case 't':
+                output_type = optarg;
+                if (strcmp(output_type, "raw") && strcmp(output_type, "hex") && strcmp(output_type, "b64")) {
+                    fprintf(stderr, "Invalid output type: %s. Must be 'raw', 'hex', or 'b64'.\n", output_type);
+                    return 1;
+                }
+                break;
+            case 'l':
+                random_len = strtoul(optarg, NULL, 0);
+                if (random_len < 1) {
+                    fprintf(stderr, "Random length must be at least 1\n");
+                    return 1;
+                }
                 break;
             default:
-                fprintf(stderr, "Usage: %s [-s] [-f num_frames] [-d device]\n", argv[0]);
+                fprintf(stderr, "Usage: %s [-s] [-f num_frames] [-d device] [-t type] [-l length]\n", argv[0]);
+                fprintf(stderr, "  -s: Enable stats output\n");
+                fprintf(stderr, "  -t: Output type (raw, hex, b64; default: hex)\n");
                 return 1;
         }
     }
@@ -202,7 +243,9 @@ int main(int argc, char *argv[]) {
         close(fd);
         return 1;
     }
-    printf("Device: %s\n", cap.card);
+    if (strcmp(output_type, "raw") != 0) {
+        printf("Device: %s\n", cap.card);
+    }
 
     // Set format (YUYV raw)
     struct v4l2_format fmt = {0};
@@ -307,6 +350,13 @@ int main(int argc, char *argv[]) {
     // Adjust pooled_len to actual used
     pooled_len = pooled_offset;
 
+    // Check for sufficient entropy (based on LavaRnd blender approx max outlen ~ sqrt(20 * inlen))
+    double max_recommended_outlen = sqrt(20.0 * pooled_len);
+    if (random_len > max_recommended_outlen) {
+        fprintf(stderr, "Warning: Output length %zu may exceed recommended entropy from %zu input bytes (max ~%.0f). Consider increasing -f.\n",
+                random_len, pooled_len, max_recommended_outlen);
+    }
+
     // Diagnostics: Pre-debias stats
     if (stats) {
         print_stats("Pre-debias (pooled)", pooled_data, pooled_len);
@@ -320,23 +370,48 @@ int main(int argc, char *argv[]) {
         print_stats("Post-debias (pooled)", pooled_data, pooled_len);
     }
 
-    // Feed into LavaRnd-inspired RNG
-    u_int8_t random_output[OUTPUT_RANDOM_BYTES];
-    if (simple_lavarnd(pooled_data, pooled_len, random_output, OUTPUT_RANDOM_BYTES) < 0) {
-        fprintf(stderr, "RNG processing failed\n");
+    // Allocate random output
+    u_int8_t *random_output = malloc(random_len);
+    if (!random_output) {
+        fprintf(stderr, "Failed to allocate random output buffer\n");
         free(pooled_data);
         goto cleanup;
     }
 
-    // Output random bytes as hex
-    printf("Random output (%d bytes from %d frames):\n", OUTPUT_RANDOM_BYTES, num_frames);
-    for (int i = 0; i < OUTPUT_RANDOM_BYTES; ++i) {
-        printf("%02x", random_output[i]);
-        if ((i + 1) % 16 == 0) printf("\n");
+    // Feed into LavaRnd-inspired RNG
+    if (simple_lavarnd(pooled_data, pooled_len, random_output, random_len) < 0) {
+        fprintf(stderr, "RNG processing failed\n");
+        free(pooled_data);
+        free(random_output);
+        goto cleanup;
     }
-    printf("\n");
+
+    // Output based on type
+    if (!strcmp(output_type, "raw")) {
+        // Binary output, no text
+        fwrite(random_output, 1, random_len, stdout);
+    } else {
+        // Print header for hex and b64
+        printf("Random output (%zu bytes from %d frames):\n", random_len, num_frames);
+        if (!strcmp(output_type, "hex")) {
+            for (size_t i = 0; i < random_len; ++i) {
+                printf("%02x", random_output[i]);
+                if ((i + 1) % 16 == 0) printf("\n");
+            }
+            printf("\n");
+        } else if (!strcmp(output_type, "b64")) {
+            char *b64 = base64_encode(random_output, random_len);
+            if (b64) {
+                printf("%s\n", b64);
+                free(b64);
+            } else {
+                fprintf(stderr, "Base64 encoding failed\n");
+            }
+        }
+    }
 
     free(pooled_data);
+    free(random_output);
 
 cleanup:
     // Stop streaming
