@@ -134,7 +134,7 @@ static void *lava_salt_blk_turn(void *salt, size_t salt_len, void *input, size_t
 }
 
 // Full LavaRnd algorithm from lavarnd.c
-static size_t lavarnd(void *input_arg, size_t inlen, void *salt, size_t salt_len, int nway, void *output_arg, size_t outlen, int use_salt) {
+static size_t lavarnd(void *input_arg, size_t inlen, void *salt, size_t salt_len, int nway, void *output_arg, size_t outlen) {
     u_int32_t hash[SHA_DIGESTSIZE / sizeof(u_int32_t)];  // SHA1 digest as words
     u_int32_t fold[5];  // Fold array
     u_int32_t *output = (u_int32_t *)output_arg;  // Output as words
@@ -164,7 +164,7 @@ static size_t lavarnd(void *input_arg, size_t inlen, void *salt, size_t salt_len
     }
 
     // Perform turn
-    if (use_salt) {
+    if (salt_len > 0) {
         p = lava_salt_blk_turn(salt, salt_len, input_arg, inlen, nway, turned);
     } else {
         p = lava_blk_turn(input_arg, inlen, nway, turned);
@@ -275,7 +275,7 @@ static void compute_channel_stats(u_int8_t *data, size_t len, int mod_offset, in
     stats->max = max_val;
 }
 
-// Print stats for all channels
+// Print stats for all channels to stderr
 static void print_stats(const char *stage, u_int8_t *data, size_t len) {
     ChannelStats y_stats, u_stats, v_stats;
 
@@ -292,10 +292,10 @@ static void print_stats(const char *stage, u_int8_t *data, size_t len) {
     compute_channel_stats(data, len, 1, 4, &u_stats);  // U: 1 mod 4
     compute_channel_stats(data, len, 3, 4, &v_stats);  // V: 3 mod 4
 
-    printf("%s Stats:\n", stage);
-    printf("  Y: mean=%.2f, std=%.2f, min=%u, max=%u\n", y_stats.mean, y_stats.stddev, y_stats.min, y_stats.max);
-    printf("  U: mean=%.2f, std=%.2f, min=%u, max=%u\n", u_stats.mean, u_stats.stddev, u_stats.min, u_stats.max);
-    printf("  V: mean=%.2f, std=%.2f, min=%u, max=%u\n", v_stats.mean, v_stats.stddev, v_stats.min, v_stats.max);
+    fprintf(stderr, "%s Stats:\n", stage);
+    fprintf(stderr, "  Y: mean=%.2f, std=%.2f, min=%u, max=%u\n", y_stats.mean, y_stats.stddev, y_stats.min, y_stats.max);
+    fprintf(stderr, "  U: mean=%.2f, std=%.2f, min=%u, max=%u\n", u_stats.mean, u_stats.stddev, u_stats.min, u_stats.max);
+    fprintf(stderr, "  V: mean=%.2f, std=%.2f, min=%u, max=%u\n", v_stats.mean, v_stats.stddev, v_stats.min, v_stats.max);
 }
 
 // Improved debias function: Mean subtraction + differential XOR to remove temporal correlations
@@ -362,30 +362,31 @@ int main(int argc, char *argv[]) {
                 }
                 break;
             case 'h':
-                printf("Usage: %s [options]\n", argv[0]);
-                printf("This program captures raw frames from a USB webcam, debiases the noise (assuming a covered camera for black frames),\n");
-                printf("and generates random data using a LavaRnd-inspired algorithm. The number of frames is automatically calculated\n");
-                printf("based on the requested output length to ensure sufficient entropy.\n\n");
-                printf("Options:\n");
-                printf("  -s             Enable statistical output for pre- and post-debias stages.\n");
-                printf("                 Displays mean, standard deviation, min, and max for Y, U, V channels in the YUYV format.\n");
-                printf("                 Useful for verifying noise quality and debiasing effectiveness.\n");
-                printf("  -d <dev>       Video device path (default: %s).\n", DEFAULT_DEVICE);
-                printf("                 Use 'v4l2-ctl --list-devices' to list available devices.\n");
-                printf("                 Example: -d /dev/video1 for a secondary camera.\n");
-                printf("  -t <type>      Output type: 'raw' (binary to stdout), 'hex' (hexadecimal), 'b64' (base64) (default: %s).\n", DEFAULT_OUTPUT_TYPE);
-                printf("                 'raw': No headers, just binary data—ideal for piping to other tools.\n");
-                printf("                 'hex': Human-readable hex dump with line breaks every 16 bytes.\n");
-                printf("                 'b64': Base64-encoded string, compact for text transmission.\n");
-                printf("  -l <len>       Length of random output in bytes (default: %d).\n", RANDOM_LEN_DEFAULT);
-                printf("                 Number of frames is calculated as ceil(len^2 / (%d * frame_size)) to ensure sufficient entropy.\n", SHA_DIGESTSIZE);
-                printf("                 Frame size is %d bytes (%dx%d YUYV, 2 bytes/pixel).\n", WIDTH * HEIGHT * 2, WIDTH, HEIGHT);
-                printf("                 Example: -l 10000 may require ~33 frames.\n");
-                printf("  -h             Display this detailed help message.\n\n");
-                printf("Examples:\n");
-                printf("  %s -l 128 -t hex      # Generate 128 hex bytes, auto-calculate frames\n", argv[0]);
-                printf("  %s -s -d /dev/video1  # Enable stats, use /dev/video1\n", argv[0]);
-                printf("  %s -t raw -l 1024 > rand.bin  # Output 1024 raw bytes to file\n", argv[0]);
+                fprintf(stderr, "Usage: %s [options]\n", argv[0]);
+                fprintf(stderr, "This program captures raw frames from a USB webcam, debiases the noise (assuming a covered camera for black frames),\n");
+                fprintf(stderr, "and generates random data using a LavaRnd-inspired algorithm. The number of frames is automatically calculated\n");
+                fprintf(stderr, "based on the requested output length to ensure sufficient entropy. Random output is sent to stdout; all other messages\n");
+                fprintf(stderr, "(stats, errors, info) are sent to stderr.\n\n");
+                fprintf(stderr, "Options:\n");
+                fprintf(stderr, "  -s             Enable statistical output for pre- and post-debias stages (to stderr).\n");
+                fprintf(stderr, "                 Displays mean, standard deviation, min, and max for Y, U, V channels in the YUYV format.\n");
+                fprintf(stderr, "                 Useful for verifying noise quality and debiasing effectiveness.\n");
+                fprintf(stderr, "  -d <dev>       Video device path (default: %s).\n", DEFAULT_DEVICE);
+                fprintf(stderr, "                 Use 'v4l2-ctl --list-devices' to list available devices.\n");
+                fprintf(stderr, "                 Example: -d /dev/video1 for a secondary camera.\n");
+                fprintf(stderr, "  -t <type>      Output type: 'raw' (binary to stdout), 'hex' (hexadecimal), 'b64' (base64) (default: %s).\n", DEFAULT_OUTPUT_TYPE);
+                fprintf(stderr, "                 'raw': No headers, just binary data—ideal for piping to files or tools.\n");
+                fprintf(stderr, "                 'hex': Human-readable hex dump with line breaks every 16 bytes.\n");
+                fprintf(stderr, "                 'b64': Base64-encoded string, compact for text transmission.\n");
+                fprintf(stderr, "  -l <len>       Length of random output in bytes (default: %d).\n", RANDOM_LEN_DEFAULT);
+                fprintf(stderr, "                 Number of frames is calculated as ceil(len^2 / (%d * frame_size)) to ensure sufficient entropy.\n", SHA_DIGESTSIZE);
+                fprintf(stderr, "                 Frame size is %d bytes (%dx%d YUYV, 2 bytes/pixel).\n", WIDTH * HEIGHT * 2, WIDTH, HEIGHT);
+                fprintf(stderr, "                 Example: -l 10000 may require ~33 frames.\n");
+                fprintf(stderr, "  -h             Display this detailed help message (to stderr).\n\n");
+                fprintf(stderr, "Examples:\n");
+                fprintf(stderr, "  %s -l 128 -t hex      # Generate 128 hex bytes to stdout, auto-calculate frames\n", argv[0]);
+                fprintf(stderr, "  %s -s -d /dev/video1  # Enable stats (to stderr), use /dev/video1\n", argv[0]);
+                fprintf(stderr, "  %s -t raw -l 1024 > rand.bin  # Output 1024 raw bytes to file\n", argv[0]);
                 return 0;
             default:
                 fprintf(stderr, "Usage: %s [-s] [-d device] [-t type] [-l length] [-h]\n", argv[0]);
@@ -408,7 +409,7 @@ int main(int argc, char *argv[]) {
         if (errno == EACCES) {
             fprintf(stderr, "Permission denied: Cannot access %s. Try adding user to 'video' group or running with sudo.\n", device);
         } else {
-            perror("Failed to open device");
+            fprintf(stderr, "Failed to open device: %s\n", strerror(errno));
         }
         return 1;
     }
@@ -416,13 +417,13 @@ int main(int argc, char *argv[]) {
     // Query capabilities
     struct v4l2_capability cap;
     if (ioctl(fd, VIDIOC_QUERYCAP, &cap) < 0) {
-        perror("VIDIOC_QUERYCAP");
+        fprintf(stderr, "VIDIOC_QUERYCAP: %s\n", strerror(errno));
         close(fd);
         return 1;
     }
     if (strcmp(output_type, "raw") != 0) {
-        printf("Device: %s\n", cap.card);
-        printf("Using %d frame(s) and nway=%d for %zu output bytes\n", num_frames, nway, random_len);
+        fprintf(stderr, "Device: %s\n", cap.card);
+        fprintf(stderr, "Using %d frame(s) and nway=%d for %zu output bytes\n", num_frames, nway, random_len);
     }
 
     // Set format (YUYV raw)
@@ -433,7 +434,7 @@ int main(int argc, char *argv[]) {
     fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_YUYV;
     fmt.fmt.pix.field = V4L2_FIELD_ANY;
     if (ioctl(fd, VIDIOC_S_FMT, &fmt) < 0) {
-        perror("VIDIOC_S_FMT");
+        fprintf(stderr, "VIDIOC_S_FMT: %s\n", strerror(errno));
         close(fd);
         return 1;
     }
@@ -444,7 +445,7 @@ int main(int argc, char *argv[]) {
     req.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     req.memory = V4L2_MEMORY_MMAP;
     if (ioctl(fd, VIDIOC_REQBUFS, &req) < 0) {
-        perror("VIDIOC_REQBUFS");
+        fprintf(stderr, "VIDIOC_REQBUFS: %s\n", strerror(errno));
         close(fd);
         return 1;
     }
@@ -458,14 +459,14 @@ int main(int argc, char *argv[]) {
         buf.memory = V4L2_MEMORY_MMAP;
         buf.index = i;
         if (ioctl(fd, VIDIOC_QUERYBUF, &buf) < 0) {
-            perror("VIDIOC_QUERYBUF");
+            fprintf(stderr, "VIDIOC_QUERYBUF: %s\n", strerror(errno));
             close(fd);
             return 1;
         }
         lengths[i] = buf.length;
         buffers[i] = mmap(NULL, buf.length, PROT_READ | PROT_WRITE, MAP_SHARED, fd, buf.m.offset);
         if (buffers[i] == MAP_FAILED) {
-            perror("mmap");
+            fprintf(stderr, "mmap: %s\n", strerror(errno));
             close(fd);
             return 1;
         }
@@ -478,7 +479,7 @@ int main(int argc, char *argv[]) {
         buf.memory = V4L2_MEMORY_MMAP;
         buf.index = i;
         if (ioctl(fd, VIDIOC_QBUF, &buf) < 0) {
-            perror("VIDIOC_QBUF");
+            fprintf(stderr, "VIDIOC_QBUF: %s\n", strerror(errno));
             close(fd);
             return 1;
         }
@@ -487,7 +488,7 @@ int main(int argc, char *argv[]) {
     // Start streaming
     enum v4l2_buf_type type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     if (ioctl(fd, VIDIOC_STREAMON, &type) < 0) {
-        perror("VIDIOC_STREAMON");
+        fprintf(stderr, "VIDIOC_STREAMON: %s\n", strerror(errno));
         goto cleanup;
     }
 
@@ -506,7 +507,7 @@ int main(int argc, char *argv[]) {
         buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
         buf.memory = V4L2_MEMORY_MMAP;
         if (ioctl(fd, VIDIOC_DQBUF, &buf) < 0) {
-            perror("VIDIOC_DQBUF");
+            fprintf(stderr, "VIDIOC_DQBUF: %s\n", strerror(errno));
             free(pooled_data);
             goto cleanup;
         }
@@ -518,7 +519,7 @@ int main(int argc, char *argv[]) {
 
         // Requeue buffer
         if (ioctl(fd, VIDIOC_QBUF, &buf) < 0) {
-            perror("VIDIOC_QBUF");
+            fprintf(stderr, "VIDIOC_QBUF: %s\n", strerror(errno));
             free(pooled_data);
             goto cleanup;
         }
@@ -555,7 +556,7 @@ int main(int argc, char *argv[]) {
     size_t salt_len = sizeof(tv_salt);
 
     // Feed into full LavaRnd
-    size_t generated_len = lavarnd(pooled_data, pooled_len, &tv_salt, salt_len, nway, random_output, blender_outlen, 1);
+    size_t generated_len = lavarnd(pooled_data, pooled_len, &tv_salt, salt_len, nway, random_output, blender_outlen);
     if (generated_len == 0) {
         fprintf(stderr, "RNG processing failed\n");
         free(pooled_data);
