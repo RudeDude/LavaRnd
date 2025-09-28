@@ -19,5 +19,6 @@ For more info on LavaRnd see:
 
 Example: ./lavarnd -s -l 1024 
 * This will use generate 1024 bytes and print some data statistics.
-
+* The random bytes (in whatever format) will be written to STDOUT
+while the "user outputs" are always on STDERR.
 
