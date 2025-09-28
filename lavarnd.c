@@ -13,11 +13,13 @@
 #include <getopt.h>        // For command-line parsing
 #include <math.h>          // For sqrt and ceil
 #include <stdint.h>        // For uint32_t
+#include <signal.h>        // For signal handling
 
 #define DEFAULT_DEVICE "/dev/video0"  // Default video device
 #define WIDTH 640                     // Low res for faster capture/noise focus
 #define HEIGHT 480
-#define BUFFERS 8                     // Increased for better concurrency
+#define MAX_BUFFERS 8                 // Maximum number of buffers for array sizing
+#define DEFAULT_BUFFERS 8             // Default number of buffers
 #define RANDOM_LEN_DEFAULT 64         // Default random output length
 #define DEFAULT_OUTPUT_TYPE "hex"     // Default output type
 #define SHA_DIGESTSIZE 20
@@ -53,6 +55,12 @@ typedef unsigned char u_int8_t;
 
 static u_int32_t *turned = NULL;
 static size_t turned_maxlen = 0;
+static int running = 1;  // Flag to control continuous loop
+
+// Signal handler for SIGINT (Ctrl+C)
+static void signal_handler(int sig) {
+    running = 0;
+}
 
 // XOR-fold-rotate function from lavarnd.c (core LavaRnd algo)
 static void lava_xor_fold_rot(u_int32_t *buf, size_t words, u_int32_t *fold) {
@@ -404,20 +412,23 @@ static void debias_yuyv(u_int8_t *data, size_t len) {
 int main(int argc, char *argv[]) {
     int stats = 0;
     int frame_stats = 0;
-    int num_buffers = BUFFERS;
+    int continuous = 0;  // New flag for continuous mode
     const char *device = DEFAULT_DEVICE;
     const char *output_type = DEFAULT_OUTPUT_TYPE;
     size_t random_len = RANDOM_LEN_DEFAULT;
     int opt;
 
     // Parse command-line options
-    while ((opt = getopt(argc, argv, "szd:t:l:h")) != -1) {
+    while ((opt = getopt(argc, argv, "szcd:t:l:h")) != -1) {
         switch (opt) {
             case 's':
                 stats = 1;
                 break;
             case 'z':
                 frame_stats = 1;
+                break;
+            case 'c':
+                continuous = 1;
                 break;
             case 'd':
                 device = optarg;
@@ -448,12 +459,14 @@ int main(int argc, char *argv[]) {
                 fprintf(stderr, "                 Useful for verifying noise quality and debiasing effectiveness of the pooled data.\n");
                 fprintf(stderr, "  -z             Enable statistical output for each individual frame before pooling (to stderr).\n");
                 fprintf(stderr, "                 Displays stats for each frame's Y, U, V channels to analyze frame-to-frame variability.\n");
+                fprintf(stderr, "  -c             Continuous mode: Fetch one frame, generate max random bytes from it, output, and repeat until interrupted (Ctrl+C).\n");
+                fprintf(stderr, "                 Ignores -l; max output per frame based on LavaRnd formula (~3500 bytes for 640x480).\n");
                 fprintf(stderr, "  -d <dev>       Video device path (default: %s).\n", DEFAULT_DEVICE);
                 fprintf(stderr, "                 Use 'v4l2-ctl --list-devices' to list available devices.\n");
                 fprintf(stderr, "                 Example: -d /dev/video1 for a secondary camera.\n");
                 fprintf(stderr, "  -t <type>      Output type: 'raw' (binary to stdout), 'hex' (hexadecimal), 'b64' (base64) (default: %s).\n", DEFAULT_OUTPUT_TYPE);
                 fprintf(stderr, "                 'raw': No headers, just binary data—ideal for piping to files or tools.\n");
-                fprintf(stderr, "                 'hex': Human-readable hex dump with line breaks every 16 bytes.\n");
+                fprintf(stderr, "                 'hex': Human-readable hex dump with line breaks every 32 bytes.\n");
                 fprintf(stderr, "                 'b64': Base64-encoded string, compact for text transmission.\n");
                 fprintf(stderr, "  -l <len>       Length of random output in bytes (default: %d).\n", RANDOM_LEN_DEFAULT);
                 fprintf(stderr, "                 Number of frames is calculated as ceil(len^2 / (%d * frame_size)) to ensure sufficient entropy.\n", SHA_DIGESTSIZE);
@@ -464,24 +477,35 @@ int main(int argc, char *argv[]) {
                 fprintf(stderr, "  %s -l 128 -t hex      # Generate 128 hex bytes to stdout, auto-calculate frames\n", argv[0]);
                 fprintf(stderr, "  %s -s -z -d /dev/video1  # Enable pooled and per-frame stats (to stderr), use /dev/video1\n", argv[0]);
                 fprintf(stderr, "  %s -t raw -l 1024 > rand.bin  # Output 1024 raw bytes to file\n", argv[0]);
+                fprintf(stderr, "  %s -c -t raw > rand.bin  # Continuous raw output until Ctrl+C\n", argv[0]);
                 return 0;
             default:
-                fprintf(stderr, "Usage: %s [-s] [-z] [-d device] [-t type] [-l length] [-h]\n", argv[0]);
+                fprintf(stderr, "Usage: %s [-s] [-z] [-c] [-d device] [-t type] [-l length] [-h]\n", argv[0]);
                 return 1;
         }
     }
 
-    // Calculate number of frames based on output length
+    // Setup signal handler for continuous mode
+    signal(SIGINT, signal_handler);
+
+    // Calculate number of frames based on output length (or 1 for continuous)
     size_t single_frame_len = WIDTH * HEIGHT * 2;  // YUYV: 2 bytes/pixel
-    double required_input_len = (double)random_len * random_len / SHA_DIGESTSIZE;
-    int num_frames = (int)ceil(required_input_len / single_frame_len);
-    if (num_frames < 2) num_frames = 2;
+    int num_frames = 1;
+    size_t max_random_len = random_len;
+    if (!continuous) {
+        double required_input_len = (double)random_len * random_len / SHA_DIGESTSIZE;
+        num_frames = (int)ceil(required_input_len / single_frame_len);
+        if (num_frames < 1) num_frames = 1;
+    } else {
+        // In continuous mode, ignore -l, use max per frame
+        max_random_len = (size_t)sqrt(SHA_DIGESTSIZE * single_frame_len);
+    }
 
     // Calculate nway based on output length
-    int nway = (int)ceil((double)random_len / SHA_DIGESTSIZE);
+    int nway = (int)ceil((double)max_random_len / SHA_DIGESTSIZE);
     if (nway < 1) nway = 1;
 
-    // Adjust nway to be 1 or 5 mod 6 (per doc recommendation)
+    // Adjust nway to be 1 or 5 mod 6
     while (nway % 6 != 1 && nway % 6 != 5) {
         nway++;
     }
@@ -505,7 +529,7 @@ int main(int argc, char *argv[]) {
     }
     if (strcmp(output_type, "raw") != 0) {
         fprintf(stderr, "Device: %s\n", cap.card);
-        fprintf(stderr, "Using %d frame(s) and nway=%d for %zu output bytes\n", num_frames, nway, random_len);
+        fprintf(stderr, "Using %d frame(s) and nway=%d for %zu output bytes\n", num_frames, nway, max_random_len);
     }
 
     // Set format (YUYV raw)
@@ -522,6 +546,7 @@ int main(int argc, char *argv[]) {
     }
 
     // Request buffers
+    int num_buffers = DEFAULT_BUFFERS;
     struct v4l2_requestbuffers req = {0};
     req.count = num_buffers;
     req.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
@@ -537,8 +562,8 @@ int main(int argc, char *argv[]) {
     }
 
     // Map buffers
-    void *buffers[num_buffers];
-    size_t lengths[num_buffers];
+    void *buffers[MAX_BUFFERS];
+    size_t lengths[MAX_BUFFERS];
     for (int i = 0; i < num_buffers; ++i) {
         struct v4l2_buffer buf = {0};
         buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
@@ -578,139 +603,151 @@ int main(int argc, char *argv[]) {
         goto cleanup;
     }
 
-    // Allocate pooled buffer
-    size_t pooled_len = single_frame_len * num_frames;
-    u_int8_t *pooled_data = malloc(pooled_len);
-    if (!pooled_data) {
-        fprintf(stderr, "Failed to allocate pooled buffer\n");
-        goto cleanup;
-    }
-    size_t pooled_offset = 0;
-
-    // Capture num_frames frames using select for efficiency
-    int frames_captured = 0;
-    fd_set fds;
-    struct timeval timeout;
-
-    fprintf(stderr, "Fetching %d frames.\n", num_frames);
-    while (frames_captured < num_frames) {
-        FD_ZERO(&fds);
-        FD_SET(fd, &fds);
-        timeout.tv_sec = (int)SELECT_TIMEOUT_SEC;
-        timeout.tv_usec = (int)((SELECT_TIMEOUT_SEC - (int)SELECT_TIMEOUT_SEC) * 1000000);
-
-        int ret = select(fd + 1, &fds, NULL, NULL, &timeout);
-        if (ret < 0) {
-            if (errno == EINTR) continue;  // Retry on signal interrupt
-            fprintf(stderr, "select: %s\n", strerror(errno));
-            free(pooled_data);
+    // Continuous mode loop or single run
+    do {
+        // Allocate pooled buffer (one frame for continuous)
+        size_t pooled_len = continuous ? single_frame_len : single_frame_len * num_frames;
+        u_int8_t *pooled_data = malloc(pooled_len);
+        if (!pooled_data) {
+            fprintf(stderr, "Failed to allocate pooled buffer\n");
             goto cleanup;
-        } else if (ret == 0) {
-            fprintf(stderr, "Error: select timeout while capturing frame %d\n", frames_captured);
+        }
+        size_t pooled_offset = 0;
+
+        // Capture frames (1 in continuous, num_frames otherwise)
+        int frames_to_capture = continuous ? 1 : num_frames;
+        int frames_captured = 0;
+        fd_set fds;
+        struct timeval timeout;
+
+        while (frames_captured < frames_to_capture && running) {
+            FD_ZERO(&fds);
+            FD_SET(fd, &fds);
+            timeout.tv_sec = (int)SELECT_TIMEOUT_SEC;
+            timeout.tv_usec = (int)((SELECT_TIMEOUT_SEC - (int)SELECT_TIMEOUT_SEC) * 1000000);
+
+            int ret = select(fd + 1, &fds, NULL, NULL, &timeout);
+            if (ret < 0) {
+                if (errno == EINTR) continue;  // Retry on signal interrupt
+                fprintf(stderr, "select: %s\n", strerror(errno));
+                free(pooled_data);
+                goto cleanup;
+            } else if (ret == 0) {
+                fprintf(stderr, "Error: select timeout while capturing frame %d\n", frames_captured);
+                free(pooled_data);
+                goto cleanup;
+            }
+
+            // Dequeue a buffer
+            struct v4l2_buffer buf = {0};
+            buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+            buf.memory = V4L2_MEMORY_MMAP;
+            if (ioctl(fd, VIDIOC_DQBUF, &buf) < 0) {
+                fprintf(stderr, "VIDIOC_DQBUF: %s\n", strerror(errno));
+                free(pooled_data);
+                goto cleanup;
+            }
+
+            // Process frame
+            size_t copy_len = buf.bytesused < single_frame_len ? buf.bytesused : single_frame_len;
+            if (pooled_offset + copy_len > pooled_len) {
+                fprintf(stderr, "Error: Pooled buffer overflow (offset=%zu, copy_len=%zu, max=%zu)\n",
+                        pooled_offset, copy_len, pooled_len);
+                free(pooled_data);
+                goto cleanup;
+            }
+
+            if( !continuous ) fprintf(stderr,".");
+            // Print per-frame stats if -z is enabled
+            if (frame_stats) {
+                char stage[32];
+                snprintf(stage, sizeof(stage), "Frame %d", frames_captured);
+                print_stats(stage, buffers[buf.index], copy_len);
+            }
+
+            memcpy(pooled_data + pooled_offset, buffers[buf.index], copy_len);
+            pooled_offset += copy_len;
+            frames_captured++;
+
+            // Requeue buffer
+            if (ioctl(fd, VIDIOC_QBUF, &buf) < 0) {
+                fprintf(stderr, "VIDIOC_QBUF: %s\n", strerror(errno));
+                free(pooled_data);
+                goto cleanup;
+            }
+        }
+        if( !continuous ) fprintf(stderr,"\n");
+
+        if (!running) {
             free(pooled_data);
             goto cleanup;
         }
 
-        // Dequeue a buffer
-        struct v4l2_buffer buf = {0};
-        buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-        buf.memory = V4L2_MEMORY_MMAP;
-        if (ioctl(fd, VIDIOC_DQBUF, &buf) < 0) {
-            fprintf(stderr, "VIDIOC_DQBUF: %s\n", strerror(errno));
+        // Adjust pooled_len to actual used
+        pooled_len = pooled_offset;
+
+        // Diagnostics: Pre-debias stats for pooled data
+        if (stats) {
+            print_stats("Pre-debias (pooled)", pooled_data, pooled_len);
+        }
+
+        // Debias the pooled data
+        debias_yuyv(pooled_data, pooled_len);
+
+        // Diagnostics: Post-debias stats for pooled data
+        if (stats) {
+            print_stats("Post-debias (pooled)", pooled_data, pooled_len);
+        }
+
+        // Adjust random_len for continuous mode (max per frame)
+        size_t current_random_len = continuous ? (size_t)sqrt(SHA_DIGESTSIZE * pooled_len) : random_len;
+
+        // Allocate random output (larger to fit nway * SHA_DIGESTSIZE)
+        size_t blender_outlen = nway * SHA_DIGESTSIZE;
+        u_int8_t *random_output = malloc(blender_outlen);
+        if (!random_output) {
+            fprintf(stderr, "Failed to allocate random output buffer\n");
             free(pooled_data);
             goto cleanup;
         }
 
-        // Process frame
-        size_t copy_len = buf.bytesused < single_frame_len ? buf.bytesused : single_frame_len;
-        if (pooled_offset + copy_len > pooled_len) {
-            fprintf(stderr, "Error: Pooled buffer overflow (offset=%zu, copy_len=%zu, max=%zu)\n",
-                    pooled_offset, copy_len, pooled_len);
+        // Feed into full LavaRnd (no salt for simplicity)
+        size_t generated_len = lavarnd(pooled_data, pooled_len, NULL, 0, nway, random_output, blender_outlen, stats);
+        if (generated_len == 0) {
+            fprintf(stderr, "RNG processing failed\n");
             free(pooled_data);
+            free(random_output);
             goto cleanup;
         }
 
-        fprintf(stderr,".");
-        // Print per-frame stats if -z is enabled
-        if (frame_stats) {
-            char stage[32];
-            snprintf(stage, sizeof(stage), "Frame %d", frames_captured);
-            print_stats(stage, buffers[buf.index], copy_len);
+        // Output based on type (truncate to current_random_len if needed)
+        if (!strcmp(output_type, "raw")) {
+            // Binary output, no text
+            fwrite(random_output, 1, current_random_len, stdout);
+        } else {
+            // Print header for hex and b64 to stderr
+            fprintf(stderr, "Random output (%zu bytes from %d frames):\n", current_random_len, frames_to_capture);
+            if (!strcmp(output_type, "hex")) {
+                for (size_t i = 0; i < current_random_len; ++i) {
+                    printf("%02x", random_output[i]);
+                    if ((i + 1) % 32 == 0) printf("\n");
+                }
+                printf("\n");
+            } else if (!strcmp(output_type, "b64")) {
+                char *b64 = base64_encode(random_output, current_random_len);
+                if (b64) {
+                    printf("%s\n", b64);
+                    free(b64);
+                } else {
+                    fprintf(stderr, "Base64 encoding failed\n");
+                }
+            }
         }
 
-        memcpy(pooled_data + pooled_offset, buffers[buf.index], copy_len);
-        pooled_offset += copy_len;
-        frames_captured++;
-
-        // Requeue buffer
-        if (ioctl(fd, VIDIOC_QBUF, &buf) < 0) {
-            fprintf(stderr, "VIDIOC_QBUF: %s\n", strerror(errno));
-            free(pooled_data);
-            goto cleanup;
-        }
-    }
-    fprintf(stderr,"\n");
-
-    // Adjust pooled_len to actual used
-    pooled_len = pooled_offset;
-
-    // Diagnostics: Pre-debias stats for pooled data
-    if (stats) {
-        print_stats("Pre-debias (pooled)", pooled_data, pooled_len);
-    }
-
-    // Debias the pooled data
-    debias_yuyv(pooled_data, pooled_len);
-
-    // Diagnostics: Post-debias stats for pooled data
-    if (stats) {
-        print_stats("Post-debias (pooled)", pooled_data, pooled_len);
-    }
-
-    // Allocate random output (larger to fit nway * SHA_DIGESTSIZE)
-    size_t blender_outlen = nway * SHA_DIGESTSIZE;
-    u_int8_t *random_output = malloc(blender_outlen);
-    if (!random_output) {
-        fprintf(stderr, "Failed to allocate random output buffer\n");
-        free(pooled_data);
-        goto cleanup;
-    }
-
-    // Feed into full LavaRnd (no salt for simplicity)
-    size_t generated_len = lavarnd(pooled_data, pooled_len, NULL, 0, nway, random_output, blender_outlen, stats);
-    if (generated_len == 0) {
-        fprintf(stderr, "RNG processing failed\n");
         free(pooled_data);
         free(random_output);
-        goto cleanup;
-    }
 
-    // Output based on type (truncate to random_len if needed)
-    if (!strcmp(output_type, "raw")) {
-        // Binary output, no text
-        fwrite(random_output, 1, random_len, stdout);
-    } else {
-        // Print header for hex and b64 to stderr
-        fprintf(stderr, "Random output (%zu bytes from %d frames):\n", random_len, num_frames);
-        if (!strcmp(output_type, "hex")) {
-            for (size_t i = 0; i < random_len; ++i) {
-                printf("%02x", random_output[i]);
-                if ((i + 1) % 32 == 0) printf("\n");
-            }
-            printf("\n");
-        } else if (!strcmp(output_type, "b64")) {
-            char *b64 = base64_encode(random_output, random_len);
-            if (b64) {
-                printf("%s\n", b64);
-                free(b64);
-            } else {
-                fprintf(stderr, "Base64 encoding failed\n");
-            }
-        }
-    }
-
-    free(pooled_data);
-    free(random_output);
+    } while (continuous && running);
 
 cleanup:
     // Stop streaming
