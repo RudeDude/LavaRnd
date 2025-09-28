@@ -193,7 +193,7 @@ int main(int argc, char *argv[]) {
     int opt;
 
     // Parse command-line options
-    while ((opt = getopt(argc, argv, "sf:d:t:l:")) != -1) {
+    while ((opt = getopt(argc, argv, "sf:d:t:l:h")) != -1) {
         switch (opt) {
             case 's':
                 stats = 1;
@@ -222,10 +222,36 @@ int main(int argc, char *argv[]) {
                     return 1;
                 }
                 break;
+            case 'h':
+                printf("Usage: %s [options]\n", argv[0]);
+                printf("This program captures raw frames from a USB webcam, debiases the noise (assuming a covered camera for black frames),\n");
+                printf("and generates random data using a LavaRnd-inspired algorithm.\n\n");
+                printf("Options:\n");
+                printf("  -s             Enable statistical output for pre- and post-debias stages.\n");
+                printf("                 Displays mean, standard deviation, min, and max for Y, U, V channels in the YUYV format.\n");
+                printf("                 Useful for verifying noise quality and debiasing effectiveness.\n");
+                printf("  -f <num>       Number of frames to capture and pool (default: %d).\n", DEFAULT_FRAMES);
+                printf("                 Increasing frames gathers more entropy but increases processing time.\n");
+                printf("                 Recommended: Start with 1-10; scale based on entropy needs.\n");
+                printf("  -d <dev>       Video device path (default: %s).\n", DEFAULT_DEVICE);
+                printf("                 Use 'v4l2-ctl --list-devices' to list available devices.\n");
+                printf("                 Example: -d /dev/video1 for a secondary camera.\n");
+                printf("  -t <type>      Output type: 'raw' (binary to stdout), 'hex' (hexadecimal), 'b64' (base64) (default: %s).\n", DEFAULT_OUTPUT_TYPE);
+                printf("                 'raw': No headers, just binary data—ideal for piping to other tools.\n");
+                printf("                 'hex': Human-readable hex dump with line breaks every 16 bytes.\n");
+                printf("                 'b64': Base64-encoded string, compact for text transmission.\n");
+                printf("  -l <len>       Length of random output in bytes (default: %d).\n", RANDOM_LEN_DEFAULT);
+                printf("                 Warns if requested length exceeds estimated entropy from input data.\n");
+                printf("                 Estimation based on LavaRnd 'digital blender' (~sqrt(20 * input_len)).\n");
+                printf("                 Increase -f if warning appears to ensure sufficient entropy.\n");
+                printf("  -h             Display this detailed help message.\n\n");
+                printf("Examples:\n");
+                printf("  %s -f 5 -l 128 -t hex      # Generate 128 hex bytes from 5 frames\n", argv[0]);
+                printf("  %s -s -d /dev/video1       # Enable stats, use /dev/video1\n", argv[0]);
+                printf("  %s -t raw -l 1024 > rand.bin  # Output 1024 raw bytes to file\n", argv[0]);
+                return 0;
             default:
-                fprintf(stderr, "Usage: %s [-s] [-f num_frames] [-d device] [-t type] [-l length]\n", argv[0]);
-                fprintf(stderr, "  -s: Enable stats output\n");
-                fprintf(stderr, "  -t: Output type (raw, hex, b64; default: hex)\n");
+                fprintf(stderr, "Usage: %s [-s] [-f num_frames] [-d device] [-t type] [-l length] [-h]\n", argv[0]);
                 return 1;
         }
     }
