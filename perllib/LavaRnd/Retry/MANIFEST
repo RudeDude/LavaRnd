@@ -1,8 +1,0 @@
-Changes
-Makefile.PL
-MANIFEST
-ppport.h
-README
-Retry.pm
-Retry.xs
-t/1.t

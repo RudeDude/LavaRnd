@@ -1,8 +1,0 @@
-Changes
-Makefile.PL
-MANIFEST
-ppport.h
-README
-Try_Any.pm
-Try_Any.xs
-t/1.t
