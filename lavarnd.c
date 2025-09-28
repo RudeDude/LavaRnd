@@ -481,6 +481,11 @@ int main(int argc, char *argv[]) {
     int nway = (int)ceil((double)random_len / SHA_DIGESTSIZE);
     if (nway < 1) nway = 1;
 
+    // Adjust nway to be 1 or 5 mod 6 (per doc recommendation)
+    while (nway % 6 != 1 && nway % 6 != 5) {
+        nway++;
+    }
+
     int fd = open(device, O_RDWR);
     if (fd < 0) {
         if (errno == EACCES) {
