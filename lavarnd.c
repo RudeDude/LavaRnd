@@ -10,15 +10,14 @@
 #include <unistd.h>
 #include <openssl/sha.h>   // For SHA1; install libssl-dev if needed
 #include <getopt.h>        // For command-line parsing
-#include <math.h>          // For sqrt in std dev
-#include <stdint.h>        // For uint32_t, uint64_t
+#include <math.h>          // For sqrt and ceil
+#include <stdint.h>        // For uint32_t
 
 #define DEFAULT_DEVICE "/dev/video0"  // Default video device
 #define WIDTH 320                     // Low res for faster capture/noise focus
 #define HEIGHT 240
 #define BUFFERS 4                     // Number of capture buffers
 #define RANDOM_LEN_DEFAULT 64         // Default random output length
-#define DEFAULT_FRAMES 1              // Default number of frames to pool
 #define DEFAULT_OUTPUT_TYPE "hex"     // Default output type
 
 // Simplified LavaRnd-inspired structures/macros (from lavarnd.c)
@@ -43,12 +42,11 @@ static void lava_xor_fold_rot(u_int32_t *buf, size_t words, u_int32_t *fold) {
 }
 
 // Simplified LavaRnd process: Turn input, hash, fold (inspired by lavarnd.c)
-// Added counter to avoid repetition
+// Removed counter, relying on sufficient input entropy
 static int simple_lavarnd(u_int8_t *input, size_t inlen, u_int8_t *output, size_t outlen) {
     u_int32_t hash[SHA_DIGESTSIZE / 4];
     u_int32_t fold[5];
     size_t i, j = 0;
-    uint64_t counter = 0;  // Counter to salt each hash iteration
     SHA_CTX ctx;
 
     // Basic turn: Just copy input for simplicity (extend to n-way turn if needed)
@@ -62,12 +60,10 @@ static int simple_lavarnd(u_int8_t *input, size_t inlen, u_int8_t *output, size_
     // XOR-fold-rotate the whole buffer
     lava_xor_fold_rot(turned, inlen / 4, fold);
 
-    // Hash and mix, with counter to vary each chunk
+    // Hash and mix
     while (j < outlen) {
         SHA1_Init(&ctx);
         SHA1_Update(&ctx, input, inlen);
-        SHA1_Update(&ctx, &counter, sizeof(counter));  // Salt with counter
-        counter++;
         SHA1_Final((u_int8_t *)hash, &ctx);
 
         for (i = 0; i < 5 && j < outlen; ++i, j += 4) {
@@ -154,10 +150,10 @@ static void print_stats(const char *stage, u_int8_t *data, size_t len) {
     compute_channel_stats(data, len, 1, 4, &u_stats);  // U: 1 mod 4
     compute_channel_stats(data, len, 3, 4, &v_stats);  // V: 3 mod 4
 
-    printf("%s Stats:\n", stage);
-    printf("  Y: mean=%.2f, std=%.2f, min=%u, max=%u\n", y_stats.mean, y_stats.stddev, y_stats.min, y_stats.max);
-    printf("  U: mean=%.2f, std=%.2f, min=%u, max=%u\n", u_stats.mean, u_stats.stddev, u_stats.min, u_stats.max);
-    printf("  V: mean=%.2f, std=%.2f, min=%u, max=%u\n", v_stats.mean, v_stats.stddev, v_stats.min, v_stats.max);
+    fprintf(stderr,"%s Stats:\n", stage);
+    fprintf(stderr,"  Y: mean=%.2f, std=%.2f, min=%u, max=%u\n", y_stats.mean, y_stats.stddev, y_stats.min, y_stats.max);
+    fprintf(stderr,"  U: mean=%.2f, std=%.2f, min=%u, max=%u\n", u_stats.mean, u_stats.stddev, u_stats.min, u_stats.max);
+    fprintf(stderr,"  V: mean=%.2f, std=%.2f, min=%u, max=%u\n", v_stats.mean, v_stats.stddev, v_stats.min, v_stats.max);
 }
 
 // Debias function: Subtract mean per channel (assuming YUYV: Y U Y V)
@@ -186,24 +182,16 @@ static void debias_yuyv(u_int8_t *data, size_t len) {
 
 int main(int argc, char *argv[]) {
     int stats = 0;
-    int num_frames = DEFAULT_FRAMES;
     const char *device = DEFAULT_DEVICE;
     const char *output_type = DEFAULT_OUTPUT_TYPE;
     size_t random_len = RANDOM_LEN_DEFAULT;
     int opt;
 
     // Parse command-line options
-    while ((opt = getopt(argc, argv, "sf:d:t:l:h")) != -1) {
+    while ((opt = getopt(argc, argv, "sd:t:l:h")) != -1) {
         switch (opt) {
             case 's':
                 stats = 1;
-                break;
-            case 'f':
-                num_frames = atoi(optarg);
-                if (num_frames < 1) {
-                    fprintf(stderr, "Number of frames must be at least 1\n");
-                    return 1;
-                }
                 break;
             case 'd':
                 device = optarg;
@@ -225,14 +213,12 @@ int main(int argc, char *argv[]) {
             case 'h':
                 printf("Usage: %s [options]\n", argv[0]);
                 printf("This program captures raw frames from a USB webcam, debiases the noise (assuming a covered camera for black frames),\n");
-                printf("and generates random data using a LavaRnd-inspired algorithm.\n\n");
+                printf("and generates random data using a LavaRnd-inspired algorithm. The number of frames is automatically calculated\n");
+                printf("based on the requested output length to ensure sufficient entropy.\n\n");
                 printf("Options:\n");
                 printf("  -s             Enable statistical output for pre- and post-debias stages.\n");
                 printf("                 Displays mean, standard deviation, min, and max for Y, U, V channels in the YUYV format.\n");
                 printf("                 Useful for verifying noise quality and debiasing effectiveness.\n");
-                printf("  -f <num>       Number of frames to capture and pool (default: %d).\n", DEFAULT_FRAMES);
-                printf("                 Increasing frames gathers more entropy but increases processing time.\n");
-                printf("                 Recommended: Start with 1-10; scale based on entropy needs.\n");
                 printf("  -d <dev>       Video device path (default: %s).\n", DEFAULT_DEVICE);
                 printf("                 Use 'v4l2-ctl --list-devices' to list available devices.\n");
                 printf("                 Example: -d /dev/video1 for a secondary camera.\n");
@@ -241,20 +227,26 @@ int main(int argc, char *argv[]) {
                 printf("                 'hex': Human-readable hex dump with line breaks every 16 bytes.\n");
                 printf("                 'b64': Base64-encoded string, compact for text transmission.\n");
                 printf("  -l <len>       Length of random output in bytes (default: %d).\n", RANDOM_LEN_DEFAULT);
-                printf("                 Warns if requested length exceeds estimated entropy from input data.\n");
-                printf("                 Estimation based on LavaRnd 'digital blender' (~sqrt(20 * input_len)).\n");
-                printf("                 Increase -f if warning appears to ensure sufficient entropy.\n");
+                printf("                 Number of frames is calculated as ceil(len^2 / (20 * frame_size)) to ensure sufficient entropy.\n");
+                printf("                 Frame size is %d bytes (%dx%d YUYV, 2 bytes/pixel).\n", WIDTH * HEIGHT * 2, WIDTH, HEIGHT);
+                printf("                 Example: -l 10000 may require ~33 frames.\n");
                 printf("  -h             Display this detailed help message.\n\n");
                 printf("Examples:\n");
-                printf("  %s -f 5 -l 128 -t hex      # Generate 128 hex bytes from 5 frames\n", argv[0]);
-                printf("  %s -s -d /dev/video1       # Enable stats, use /dev/video1\n", argv[0]);
+                printf("  %s -l 128 -t hex      # Generate 128 hex bytes, auto-calculate frames\n", argv[0]);
+                printf("  %s -s -d /dev/video1  # Enable stats, use /dev/video1\n", argv[0]);
                 printf("  %s -t raw -l 1024 > rand.bin  # Output 1024 raw bytes to file\n", argv[0]);
                 return 0;
             default:
-                fprintf(stderr, "Usage: %s [-s] [-f num_frames] [-d device] [-t type] [-l length] [-h]\n", argv[0]);
+                fprintf(stderr, "Usage: %s [-s] [-d device] [-t type] [-l length] [-h]\n", argv[0]);
                 return 1;
         }
     }
+
+    // Calculate number of frames based on output length
+    size_t single_frame_len = WIDTH * HEIGHT * 2;  // YUYV: 2 bytes/pixel
+    double required_input_len = (double)random_len * random_len / 20.0;
+    int num_frames = (int)ceil(required_input_len / single_frame_len);
+    if (num_frames < 1) num_frames = 1;  // Ensure at least one frame
 
     int fd = open(device, O_RDWR);
     if (fd < 0) {
@@ -273,9 +265,8 @@ int main(int argc, char *argv[]) {
         close(fd);
         return 1;
     }
-    if (strcmp(output_type, "raw") != 0) {
-        printf("Device: %s\n", cap.card);
-    }
+    fprintf(stderr,"Device: %s\n", cap.card);
+    fprintf(stderr,"Using %d frame(s) for %zu output bytes\n", num_frames, random_len);
 
     // Set format (YUYV raw)
     struct v4l2_format fmt = {0};
@@ -344,7 +335,6 @@ int main(int argc, char *argv[]) {
     }
 
     // Allocate pooled buffer
-    size_t single_frame_len = WIDTH * HEIGHT * 2;  // YUYV: 2 bytes/pixel
     size_t pooled_len = single_frame_len * num_frames;
     u_int8_t *pooled_data = malloc(pooled_len);
     if (!pooled_data) {
@@ -379,13 +369,6 @@ int main(int argc, char *argv[]) {
 
     // Adjust pooled_len to actual used
     pooled_len = pooled_offset;
-
-    // Check for sufficient entropy (based on LavaRnd blender approx max outlen ~ sqrt(20 * inlen))
-    double max_recommended_outlen = sqrt(20.0 * pooled_len);
-    if (random_len > max_recommended_outlen) {
-        fprintf(stderr, "Warning: Output length %zu may exceed recommended entropy from %zu input bytes (max ~%.0f). Consider increasing -f.\n",
-                random_len, pooled_len, max_recommended_outlen);
-    }
 
     // Diagnostics: Pre-debias stats
     if (stats) {
@@ -422,17 +405,17 @@ int main(int argc, char *argv[]) {
         fwrite(random_output, 1, random_len, stdout);
     } else {
         // Print header for hex and b64
-        printf("Random output (%zu bytes from %d frames):\n", random_len, num_frames);
+        fprintf(stderr,"Random output (%zu bytes from %d frames):\n", random_len, num_frames);
         if (!strcmp(output_type, "hex")) {
             for (size_t i = 0; i < random_len; ++i) {
-                printf("%02x", random_output[i]);
+                fprintf(stderr,"%02x", random_output[i]);
                 if ((i + 1) % 16 == 0) printf("\n");
             }
-            printf("\n");
+            fprintf(stderr,"\n");
         } else if (!strcmp(output_type, "b64")) {
             char *b64 = base64_encode(random_output, random_len);
             if (b64) {
-                printf("%s\n", b64);
+                fprintf(stderr,"%s\n", b64);
                 free(b64);
             } else {
                 fprintf(stderr, "Base64 encoding failed\n");
