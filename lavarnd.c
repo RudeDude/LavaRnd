@@ -401,16 +401,20 @@ static void debias_yuyv(u_int8_t *data, size_t len) {
 
 int main(int argc, char *argv[]) {
     int stats = 0;
+    int frame_stats = 0;  // New flag for per-frame stats
     const char *device = DEFAULT_DEVICE;
     const char *output_type = DEFAULT_OUTPUT_TYPE;
     size_t random_len = RANDOM_LEN_DEFAULT;
     int opt;
 
     // Parse command-line options
-    while ((opt = getopt(argc, argv, "sd:t:l:h")) != -1) {
+    while ((opt = getopt(argc, argv, "szd:t:l:h")) != -1) {
         switch (opt) {
             case 's':
                 stats = 1;
+                break;
+            case 'z':
+                frame_stats = 1;
                 break;
             case 'd':
                 device = optarg;
@@ -436,9 +440,11 @@ int main(int argc, char *argv[]) {
                 fprintf(stderr, "based on the requested output length to ensure sufficient entropy. Random output is sent to stdout; all other messages\n");
                 fprintf(stderr, "(stats, errors, info) are sent to stderr.\n\n");
                 fprintf(stderr, "Options:\n");
-                fprintf(stderr, "  -s             Enable statistical output for pre- and post-debias stages (to stderr).\n");
+                fprintf(stderr, "  -s             Enable statistical output for pre- and post-debias pooled data (to stderr).\n");
                 fprintf(stderr, "                 Displays mean, standard deviation, min, and max for Y, U, V channels in the YUYV format.\n");
-                fprintf(stderr, "                 Useful for verifying noise quality and debiasing effectiveness.\n");
+                fprintf(stderr, "                 Useful for verifying noise quality and debiasing effectiveness of the pooled data.\n");
+                fprintf(stderr, "  -z             Enable statistical output for each individual frame before pooling (to stderr).\n");
+                fprintf(stderr, "                 Displays stats for each frame's Y, U, V channels to analyze frame-to-frame variability.\n");
                 fprintf(stderr, "  -d <dev>       Video device path (default: %s).\n", DEFAULT_DEVICE);
                 fprintf(stderr, "                 Use 'v4l2-ctl --list-devices' to list available devices.\n");
                 fprintf(stderr, "                 Example: -d /dev/video1 for a secondary camera.\n");
@@ -453,11 +459,11 @@ int main(int argc, char *argv[]) {
                 fprintf(stderr, "  -h             Display this detailed help message (to stderr).\n\n");
                 fprintf(stderr, "Examples:\n");
                 fprintf(stderr, "  %s -l 128 -t hex      # Generate 128 hex bytes to stdout, auto-calculate frames\n", argv[0]);
-                fprintf(stderr, "  %s -s -d /dev/video1  # Enable stats (to stderr), use /dev/video1\n", argv[0]);
+                fprintf(stderr, "  %s -s -z -d /dev/video1  # Enable pooled and per-frame stats (to stderr), use /dev/video1\n", argv[0]);
                 fprintf(stderr, "  %s -t raw -l 1024 > rand.bin  # Output 1024 raw bytes to file\n", argv[0]);
                 return 0;
             default:
-                fprintf(stderr, "Usage: %s [-s] [-d device] [-t type] [-l length] [-h]\n", argv[0]);
+                fprintf(stderr, "Usage: %s [-s] [-z] [-d device] [-t type] [-l length] [-h]\n", argv[0]);
                 return 1;
         }
     }
@@ -588,6 +594,14 @@ int main(int argc, char *argv[]) {
             free(pooled_data);
             goto cleanup;
         }
+
+        // Print per-frame stats if -z is enabled
+        if (frame_stats) {
+            char stage[32];
+            snprintf(stage, sizeof(stage), "Frame %d", frame);
+            print_stats(stage, buffers[buf.index], copy_len);
+        }
+
         memcpy(pooled_data + pooled_offset, buffers[buf.index], copy_len);
         pooled_offset += copy_len;
 
@@ -602,7 +616,7 @@ int main(int argc, char *argv[]) {
     // Adjust pooled_len to actual used
     pooled_len = pooled_offset;
 
-    // Diagnostics: Pre-debias stats
+    // Diagnostics: Pre-debias stats for pooled data
     if (stats) {
         print_stats("Pre-debias (pooled)", pooled_data, pooled_len);
     }
@@ -610,7 +624,7 @@ int main(int argc, char *argv[]) {
     // Debias the pooled data
     debias_yuyv(pooled_data, pooled_len);
 
-    // Diagnostics: Post-debias stats
+    // Diagnostics: Post-debias stats for pooled data
     if (stats) {
         print_stats("Post-debias (pooled)", pooled_data, pooled_len);
     }
@@ -638,8 +652,8 @@ int main(int argc, char *argv[]) {
         // Binary output, no text
         fwrite(random_output, 1, random_len, stdout);
     } else {
-        // Print header for hex and b64
-        printf("Random output (%zu bytes from %d frames):\n", random_len, num_frames);
+        // Print header for hex and b64 to stderr
+        fprintf(stderr, "Random output (%zu bytes from %d frames):\n", random_len, num_frames);
         if (!strcmp(output_type, "hex")) {
             for (size_t i = 0; i < random_len; ++i) {
                 printf("%02x", random_output[i]);
