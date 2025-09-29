@@ -10,6 +10,10 @@ For more info on LavaRnd see:
 # I am am including the same license as the original.
 # I have run diehard on outputs but I have NOT reviewed the "Digital Blender" for correctness.
 
+Build:
+1. `sudo apt install libssl-dev`
+2. `make`
+
 * Cover your webcam with tape or lens cover so it is completely dark.
 * Check permissions on the default video device: `ls -l /dev/video0`
 * Your user probably needs to be in the video group `sudo usermod -aG video $USER`
@@ -21,4 +25,9 @@ Example: `./lavarnd -s -l 1024`
 * The random bytes (in whatever format) will be written to STDOUT
 while the "user outputs" are always on STDERR.
 Therefore, it is safe to say `./lavarnd -s -l 4096 -t raw > rand.bin`
+
+
+Testing:
+* `sudo apt install ent` then `ent ./rand.bin` for a quick test of entropy
+* `sudo apt install dieharder` then `dieharder -a -f ./rand.bin` for a huge suite of rigorous tests.
 

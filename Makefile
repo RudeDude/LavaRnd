@@ -4,7 +4,7 @@
 # Compiler and flags
 CC = gcc
 # Add -D_POSIX_C_SOURCE to ensure struct timeval is defined
-CFLAGS = -std=c99 -D_POSIX_C_SOURCE=200809L -Wall -o2 -Wextra
+CFLAGS = -std=c99 -D_POSIX_C_SOURCE=200809L -o2 # -Wall -Wextra
 LDFLAGS = -lcrypto -lm
 
 # Source and output
