@@ -25,6 +25,8 @@
 #define SHA_DIGESTSIZE 20
 #define DEFAULT_NWAY 5                // Default nway for blender if not calculated
 #define SELECT_TIMEOUT_SEC 0.5        // Timeout for select in seconds
+#define BLACK_THRESHOLD 50            // Y channel mean threshold for "black" frame validation
+#define BLACK_VALIDATION_ENABLED 1    // Enable/disable black frame validation
 
 // LavaRnd macros from lavarnd.c
 #define LAVA_DIVUP(x, y) (((x) + (y) - 1) / (y))
@@ -353,6 +355,38 @@ static void compute_channel_stats(u_int8_t *data, size_t len, int mod_offset, in
     stats->max = max_val;
 }
 
+// Validate that frame is "almost entirely black" (covered camera)
+// Returns 1 if frame passes validation (is black), 0 if it fails
+static int validate_black_frame(u_int8_t *data, size_t len, int verbose) {
+    ChannelStats y_stats, y2_stats;
+
+    // Check Y channel (luminance) - positions 0 and 2 mod 4
+    compute_channel_stats(data, len, 0, 4, &y_stats);  // Y1
+    compute_channel_stats(data, len, 2, 4, &y2_stats); // Y2
+    
+    // Average Y1 and Y2 means
+    double mean_y = (y_stats.mean + y2_stats.mean) / 2.0;
+    
+    if (mean_y > BLACK_THRESHOLD) {
+        if (verbose) {
+            fprintf(stderr, "\n=== FRAME VALIDATION FAILED ===\n");
+            fprintf(stderr, "ERROR: Camera appears to be UNCOVERED!\n");
+            fprintf(stderr, "Y channel mean: %.2f (threshold: %d)\n", mean_y, BLACK_THRESHOLD);
+            fprintf(stderr, "\nFor proper entropy generation, the camera lens must be covered.\n");
+            fprintf(stderr, "Please cover the camera with a lens cap, tape, or your finger and try again.\n");
+            fprintf(stderr, "================================\n\n");
+        }
+        return 0;  // Validation failed
+    }
+    
+    if (verbose) {
+        fprintf(stderr, "Frame validation PASSED: Y mean=%.2f (threshold: %d) - camera appears covered.\n", 
+                mean_y, BLACK_THRESHOLD);
+    }
+    
+    return 1;  // Validation passed
+}
+
 // Print stats for all channels to stderr
 static void print_stats(const char *stage, u_int8_t *data, size_t len) {
     ChannelStats y_stats, u_stats, v_stats;
@@ -660,6 +694,17 @@ int main(int argc, char *argv[]) {
             }
 
             if( !continuous ) fprintf(stderr,".");
+            
+            // Validate that frame is black (camera covered) before processing
+            if (BLACK_VALIDATION_ENABLED && frames_captured == 0) {
+                // Only validate first frame to avoid spamming (all should be similar)
+                if (!validate_black_frame(buffers[buf.index], copy_len, 1)) {
+                    fprintf(stderr, "\nAborting: Frame validation failed. Cover the camera and retry.\n");
+                    free(pooled_data);
+                    goto cleanup;
+                }
+            }
+            
             // Print per-frame stats if -z is enabled
             if (frame_stats) {
                 char stage[32];
